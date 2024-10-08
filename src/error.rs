@@ -37,7 +37,7 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-#[cfg(feature = "ultimate_guitar")]
+#[cfg(feature = "download")]
 impl From<reqwest::Error> for Error {
     fn from(err: reqwest::Error) -> Self {
         Self::Http(err.to_string())

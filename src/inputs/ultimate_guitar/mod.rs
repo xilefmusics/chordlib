@@ -21,12 +21,18 @@ fn get_nested_field<'a>(json: &'a serde_json::Value, keys: &[&str]) -> Option<&'
     current_value.as_str()
 }
 
-pub fn load(url: &str) -> Result<Song, Error> {
+#[cfg(feature = "download")]
+pub fn load_url(url: &str) -> Result<Song, Error> {
     let response = reqwest::blocking::get(url)?;
     if !response.status().is_success() {
         return Err(Error::Other(format!("status ({})", response.status(),)));
     }
-    let html = scraper::Html::parse_document(&response.text()?);
+    load_html(&response.text()?)
+}
+
+#[cfg(feature = "html")]
+pub fn load_html(html: &str) -> Result<Song, Error> {
+    let html = scraper::Html::parse_document(html);
     let selector = scraper::Selector::parse("div.js-store").unwrap();
     let element = html
         .select(&selector)

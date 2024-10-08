@@ -23,7 +23,7 @@ fn main() -> Result<(), Error> {
     let args = Args::parse();
 
     let mut song = if args.input.starts_with("https://tabs.ultimate-guitar.com/") {
-        chordlib::inputs::ultimate_guitar::load(&args.input)
+        chordlib::inputs::ultimate_guitar::load_url(&args.input)
     } else if args.input.ends_with(".cp") {
         chordlib::inputs::chord_pro::load(&args.input)
     } else {

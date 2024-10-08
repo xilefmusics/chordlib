@@ -11,6 +11,7 @@ serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.120"
 
 [features]
-ultimate_guitar = ["reqwest", "scraper"]
+download = ["reqwest"]
+html = ["scraper"]
 bin = ["clap"]
 
