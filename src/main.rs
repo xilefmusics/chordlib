@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use chordlib::outputs::{FormatChordPro, FormatRender};
+use chordlib::outputs::{FormatCharPages, FormatChordPro, FormatRender};
 use chordlib::types::SimpleChord;
 use chordlib::Error;
 
@@ -36,6 +36,10 @@ fn main() -> Result<(), Error> {
     if let Some(key) = args.key {
         song.transpose(SimpleChord::new(key));
     }
+
+    let char_pages = (&song).format_char_pages(80, 40, None, None);
+    let char_page = &char_pages[0];
+    println!("{}", char_page.terminal());
 
     if args.render {
         println!("{}", song.format_render(None, None));
