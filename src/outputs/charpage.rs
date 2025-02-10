@@ -4,6 +4,53 @@ use std::cmp::max;
 use std::iter::{Chain, Repeat, Take, Zip};
 use std::slice::Iter;
 
+pub struct CharPageSet<'a> {
+    keyword_prefix: &'a str,
+    keyword_suffix: &'a str,
+    text_prefix: &'a str,
+    text_suffix: &'a str,
+    chord_prefix: &'a str,
+    chord_suffix: &'a str,
+}
+
+impl<'a> CharPageSet<'a> {
+    pub fn new() -> Self {
+        Self {
+            keyword_prefix: "",
+            keyword_suffix: "",
+            text_prefix: "",
+            text_suffix: "",
+            chord_prefix: "",
+            chord_suffix: "",
+        }
+    }
+
+    pub fn keyword_prefix(mut self, keyword_prefix: &'a str) -> Self {
+        self.keyword_prefix = keyword_prefix;
+        self
+    }
+    pub fn keyword_suffix(mut self, keyword_suffix: &'a str) -> Self {
+        self.keyword_suffix = keyword_suffix;
+        self
+    }
+    pub fn text_prefix(mut self, text_prefix: &'a str) -> Self {
+        self.text_prefix = text_prefix;
+        self
+    }
+    pub fn text_suffix(mut self, text_suffix: &'a str) -> Self {
+        self.text_suffix = text_suffix;
+        self
+    }
+    pub fn chord_prefix(mut self, chord_prefix: &'a str) -> Self {
+        self.chord_prefix = chord_prefix;
+        self
+    }
+    pub fn chord_suffix(mut self, chord_suffix: &'a str) -> Self {
+        self.chord_suffix = chord_suffix;
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum CharPageLine {
     Keyword(String),
@@ -15,27 +62,20 @@ pub enum CharPageLine {
 impl CharPageLine {
     pub fn len(&self) -> usize {
         match self {
-            Self::Keyword(s) => s.chars().count(),
+            Self::Keyword(s) => s.chars().count() + 1,
             Self::Chord(s) => s.chars().count(),
             Self::Text(s) => s.chars().count(),
             Self::Empty => 0,
         }
     }
 
-    pub fn terminal(&self) -> String {
+    pub fn render(&self, set: &CharPageSet) -> String {
         match self {
-            CharPageLine::Keyword(s) => format!("\x1b[1m{}\x1b[0m", s),
-            CharPageLine::Text(s) => format!("{}", s),
-            CharPageLine::Chord(s) => format!("\x1b[1m{}\x1b[0m", s),
-            CharPageLine::Empty => "".into(),
-        }
-    }
-
-    pub fn html(&self) -> String {
-        match self {
-            CharPageLine::Keyword(s) => format!("<b>{}</b>", s),
-            CharPageLine::Text(s) => format!("{}>", s),
-            CharPageLine::Chord(s) => format!("<b>{}</b>", s),
+            CharPageLine::Keyword(s) => {
+                format!("{}{}:{}", set.keyword_prefix, s, set.keyword_suffix)
+            }
+            CharPageLine::Text(s) => format!("{}{}{}", set.text_prefix, s, set.text_suffix),
+            CharPageLine::Chord(s) => format!("{}{}{}", set.chord_prefix, s, set.chord_suffix),
             CharPageLine::Empty => "".into(),
         }
     }
@@ -80,24 +120,9 @@ impl CharPage {
             .take(max(self.first_column_height, self.second_column_height))
     }
 
-    pub fn html(&self) -> String {
+    pub fn render(&self, set: &CharPageSet) -> String {
         self.rows()
-            .map(|(first, second)| (first.html(), first.len(), second.html()))
-            .map(|(first, first_len, second)| {
-                format!(
-                    "{}{}{}",
-                    first,
-                    " ".repeat(self.max_width - first_len - self.second_column_width),
-                    second
-                )
-            })
-            .collect::<Vec<String>>()
-            .join("\n")
-    }
-
-    pub fn terminal(&self) -> String {
-        self.rows()
-            .map(|(first, second)| (first.terminal(), first.len(), second.terminal()))
+            .map(|(first, second)| (first.render(set), first.len(), second.render(set)))
             .map(|(first, first_len, second)| {
                 format!(
                     "{}{}{}",
@@ -116,6 +141,7 @@ impl CharPage {
         if self.max_height - self.first_column_height > height {
             if self.first_column_height > 0 {
                 self.first_column.push(CharPageLine::Empty);
+                self.first_column.push(CharPageLine::Empty);
                 self.first_column_height += 1;
             }
             self.first_column.extend(lines);
@@ -126,6 +152,7 @@ impl CharPage {
             && self.max_height - self.second_column_height > height
         {
             if self.second_column_height > 0 {
+                self.second_column.push(CharPageLine::Empty);
                 self.second_column.push(CharPageLine::Empty);
                 self.second_column_height += 1;
             }
