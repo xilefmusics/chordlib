@@ -1,6 +1,6 @@
 use super::SimpleChord;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Key {
     Chord(SimpleChord),
     Nashville,
