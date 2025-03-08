@@ -1,0 +1,23 @@
+
+        <!-- <table class ="meta"> -->
+        <!--   <tbody> -->
+        <!--     {% if key.is_some() %} -->
+        <!--     <tr> -->
+        <!--       <td class="meta-key">Key:</td> -->
+        <!--       <td class="meta-value">{{ key.unwrap() }}</td> -->
+        <!--     </tr> -->
+        <!--     {% endif %} -->
+        <!--     {% if tempo.is_some() %} -->
+        <!--     <tr> -->
+        <!--       <td class="meta-key">Tempo:</td> -->
+        <!--       <td class="meta-value">{{ tempo.unwrap() }}</td> -->
+        <!--     </tr> -->
+        <!--     {% endif %} -->
+        <!--     {% if time.is_some() %} -->
+        <!--     <tr> -->
+        <!--       <td class="meta-key">Time:</td> -->
+        <!--       <td class="meta-value">{{ time.unwrap().0 }}/{{ time.unwrap().1 }}</td> -->
+        <!--     </tr> -->
+        <!--     {% endif %} -->
+        <!--   </tbody> -->
+        <!-- </table> -->

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use super::SimpleChord;
+use super::{Key, SimpleChord};
 use crate::error::Error;
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -34,6 +34,7 @@ pub struct Chord {
     base: Option<SimpleChord>,
     kind: Kind,
     var: String,
+    duration: Option<u32>,
 }
 
 impl Chord {
@@ -103,7 +104,17 @@ impl Chord {
         result
     }
 
-    pub fn format(&self, key: SimpleChord) -> String {
+    pub fn duration(self, duration: u32) -> Self {
+        let mut result = self;
+        result.duration = Some(duration);
+        result
+    }
+
+    pub fn get_duration(&self) -> Option<u32> {
+        self.duration
+    }
+
+    pub fn format(&self, key: &Key) -> String {
         format!(
             "{}{}{}{}",
             self.main.format(&key),
@@ -181,13 +192,27 @@ impl Chord {
             None => (s, ""),
         }
     }
+
+    fn parse_duration<'a>(s: &'a str) -> Result<(Option<u32>, &'a str), Error> {
+        if let Some((before, after)) = s.split_once(':') {
+            return Ok((
+                Some(
+                    after
+                        .parse()
+                        .map_err(|_| Error::Parse("failed to parse the duration".into()))?,
+                ),
+                before,
+            ));
+        }
+        Ok((None, s))
+    }
 }
 
 impl FromStr for Chord {
     type Err = Error;
 
-    fn from_str(s_in: &str) -> Result<Self, Self::Err> {
-        let s = s_in;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (duration, s) = Self::parse_duration(s)?;
         let (main, s) = Self::parse_simple_chord(s)?;
         let (kind, s) = Self::parse_kind(s);
         let (var, s) = Self::parse_var(s);
@@ -198,6 +223,7 @@ impl FromStr for Chord {
             base,
             kind,
             var: var.to_string(),
+            duration,
         })
     }
 }

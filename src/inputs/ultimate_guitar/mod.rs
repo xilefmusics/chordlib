@@ -76,6 +76,8 @@ pub fn load_string(content: &str, title: &str, artist: &str) -> Result<Song, Err
         key: Some(key),
         artist: Some(artist.into()),
         language: None, // TODO: parse language
+        tempo: None,    // TODO: parse tempo
+        time: None,     // TODO: parse time
         sections,
     }
     .normalize()

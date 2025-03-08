@@ -3,6 +3,8 @@ pub struct SectionIterator<'a> {
     key: &'a mut Option<String>,
     artist: &'a mut Option<String>,
     language: &'a mut Option<String>,
+    tempo: &'a mut Option<u32>,
+    time: &'a mut Option<(u32, u32)>,
     section_title_cache: Option<&'a str>,
     lines_cache: Vec<&'a str>,
     lines: std::str::Lines<'a>,
@@ -15,12 +17,16 @@ impl<'a> SectionIterator<'a> {
         key: &'a mut Option<String>,
         artist: &'a mut Option<String>,
         language: &'a mut Option<String>,
+        tempo: &'a mut Option<u32>,
+        time: &'a mut Option<(u32, u32)>,
     ) -> Self {
         Self {
             title,
             key,
             artist,
             language,
+            tempo,
+            time,
             section_title_cache: None,
             lines_cache: Vec::default(),
             lines: content.lines(),
@@ -54,6 +60,12 @@ impl<'a> Iterator for SectionIterator<'a> {
                         "key" => *self.key = Some(value.into()),
                         "artist" => *self.artist = Some(value.into()),
                         "language" => *self.language = Some(value.into()),
+                        "tempo" => *self.tempo = value.parse().ok(),
+                        "time" => {
+                            *self.time = value
+                                .split_once('/')
+                                .and_then(|(a, b)| Some((a.parse().ok()?, b.parse().ok()?)))
+                        }
                         "section" => {
                             if let Some(title) = self.section_title_cache {
                                 let lines_cache = std::mem::take(&mut self.lines_cache);

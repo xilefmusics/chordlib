@@ -1,4 +1,4 @@
-use crate::types::{Line, Section, SimpleChord, Song};
+use crate::types::{Key, Line, Section, SimpleChord, Song};
 
 pub enum OutputLine {
     Keyword(String),
@@ -7,19 +7,11 @@ pub enum OutputLine {
 }
 
 pub trait FormatOutputLines {
-    fn format_output_lines(
-        &self,
-        key: Option<SimpleChord>,
-        language: Option<usize>,
-    ) -> Vec<OutputLine>;
+    fn format_output_lines(&self, key: Option<&Key>, language: Option<usize>) -> Vec<OutputLine>;
 }
 
 impl FormatOutputLines for &Line {
-    fn format_output_lines(
-        &self,
-        key: Option<SimpleChord>,
-        language: Option<usize>,
-    ) -> Vec<OutputLine> {
+    fn format_output_lines(&self, key: Option<&Key>, language: Option<usize>) -> Vec<OutputLine> {
         let mut chord_line = String::default();
         let mut text_line = String::default();
         let language = language.unwrap_or(0);
@@ -38,7 +30,7 @@ impl FormatOutputLines for &Line {
                 chord_line = format!(
                     "{}{}",
                     chord_line,
-                    chord.format(key.clone().unwrap_or(SimpleChord::default()))
+                    chord.format(key.clone().unwrap_or(&Key::default()))
                 );
             }
             text_line = format!("{}{}", text_line, part.languages[language]);
@@ -56,31 +48,24 @@ impl FormatOutputLines for &Line {
 }
 
 impl FormatOutputLines for &Section {
-    fn format_output_lines(
-        &self,
-        key: Option<SimpleChord>,
-        language: Option<usize>,
-    ) -> Vec<OutputLine> {
+    fn format_output_lines(&self, key: Option<&Key>, language: Option<usize>) -> Vec<OutputLine> {
         std::iter::once(OutputLine::Keyword(self.title.clone()))
             .chain(
                 self.lines
                     .iter()
-                    .flat_map(|line| line.format_output_lines(key.clone(), language)),
+                    .flat_map(|line| line.format_output_lines(key, language)),
             )
             .collect()
     }
 }
 
 impl FormatOutputLines for &Song {
-    fn format_output_lines(
-        &self,
-        key: Option<SimpleChord>,
-        language: Option<usize>,
-    ) -> Vec<OutputLine> {
-        let key = key.unwrap_or(self.key.clone().unwrap_or(SimpleChord::default()));
+    fn format_output_lines(&self, key: Option<&Key>, language: Option<usize>) -> Vec<OutputLine> {
+        let self_key = self.key.clone().unwrap_or(SimpleChord::default()).into();
+        let key = key.unwrap_or(&self_key);
         self.sections
             .iter()
-            .flat_map(|section| section.format_output_lines(Some(key.clone()), language))
+            .flat_map(|section| section.format_output_lines(Some(key), language))
             .collect()
     }
 }

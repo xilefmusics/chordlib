@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use super::Key;
 use crate::error::Error;
 
 static CHORD_STRINGS_SHARP: &[&str] = &[
@@ -7,6 +8,10 @@ static CHORD_STRINGS_SHARP: &[&str] = &[
 ];
 static CHORD_STRINGS_FLAT: &[&str] = &[
     "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab",
+];
+
+static CHORD_STRINGS_NASHVILLE: &[&str] = &[
+    "1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7",
 ];
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -61,12 +66,15 @@ impl SimpleChord {
         self.transpose(12 - key.level)
     }
 
-    pub fn format(&self, key: &Self) -> &'static str {
-        match key.level {
-            0 | 2 | 3 | 5 | 7 | 9 | 10 => {
-                CHORD_STRINGS_SHARP[((self.level + key.level) % 12) as usize]
-            }
-            _ => CHORD_STRINGS_FLAT[((self.level + key.level) % 12) as usize],
+    pub fn format(&self, key: &Key) -> &'static str {
+        match key {
+            Key::Nashville => CHORD_STRINGS_NASHVILLE[self.level as usize],
+            Key::Chord(chord) => match chord.level {
+                0 | 2 | 3 | 5 | 7 | 9 | 10 => {
+                    CHORD_STRINGS_SHARP[((self.level + chord.level) % 12) as usize]
+                }
+                _ => CHORD_STRINGS_FLAT[((self.level + chord.level) % 12) as usize],
+            },
         }
     }
 }

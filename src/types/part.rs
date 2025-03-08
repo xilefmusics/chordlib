@@ -8,12 +8,21 @@ use crate::error::Error;
 pub struct Part {
     pub chord: Option<Chord>,
     pub languages: Vec<String>,
+    pub comment: bool,
 }
 
 impl Part {
     pub fn normalize(&mut self, key: &SimpleChord) -> &mut Self {
         self.chord = self.chord.clone().map(|chord| chord.normalize(key));
         self
+    }
+
+    pub fn new_comment(c: String) -> Self {
+        Self {
+            chord: None,
+            languages: vec![c],
+            comment: true,
+        }
     }
 }
 
@@ -28,6 +37,7 @@ impl TryFrom<(&str, &str)> for Part {
                 Some(Chord::from_str(value.0)?)
             },
             languages: vec![value.1.to_string()],
+            comment: false,
         })
     }
 }

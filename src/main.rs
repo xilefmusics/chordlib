@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use chordlib::outputs::{FormatCharPages, FormatChordPro, FormatRender};
+use chordlib::outputs::{FormatChordPro, FormatHTML, FormatRender};
 use chordlib::types::SimpleChord;
 use chordlib::Error;
 
@@ -24,7 +24,7 @@ fn main() -> Result<(), Error> {
 
     let mut song = if args.input.starts_with("https://tabs.ultimate-guitar.com/") {
         chordlib::inputs::ultimate_guitar::load_url(&args.input)
-    } else if args.input.ends_with(".cp") {
+    } else if args.input.ends_with(".cp") || args.input.ends_with(".wp") {
         chordlib::inputs::chord_pro::load(&args.input)
     } else {
         Err(Error::Other(format!(
@@ -37,10 +37,6 @@ fn main() -> Result<(), Error> {
         song.transpose(SimpleChord::new(key));
     }
 
-    let char_pages = (&song).format_char_pages(80, 40, None, None);
-    let char_page = &char_pages[0];
-    println!("{}", char_page.terminal());
-
     if args.render {
         println!("{}", song.format_render(None, None));
     }
@@ -48,10 +44,20 @@ fn main() -> Result<(), Error> {
     if args.output.ends_with(".cp") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_chord_pro(None, None),
+            (&song).format_chord_pro(None, None, false),
+        )?)
+    } else if args.output.ends_with(".wp") {
+        Ok(std::fs::write(
+            args.output,
+            (&song).format_chord_pro(None, None, true),
         )?)
     } else if args.output.ends_with(".json") {
         Ok(std::fs::write(args.output, serde_json::to_string(&song)?)?)
+    } else if args.output.ends_with(".html") {
+        Ok(std::fs::write(
+            args.output,
+            (&song).format_html(None, None, None),
+        )?)
     } else if args.output.len() == 0 {
         Ok(())
     } else {

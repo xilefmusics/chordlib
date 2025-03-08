@@ -15,25 +15,38 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     let mut key = None;
     let mut artist = None;
     let mut language = None;
+    let mut tempo = None;
+    let mut time = None;
 
-    let sections = SectionIterator::new(input, &mut title, &mut key, &mut artist, &mut language)
-        .map(|(keyword, lines)| {
-            let lines = lines
-                .iter()
-                .map(|line| {
-                    let parts = PartIterator::new(line).collect::<Result<Vec<Part>, Error>>()?;
-                    Ok(Line::new(parts))
-                })
-                .collect::<Result<Vec<Line>, Error>>()?;
-            Ok(Section::new(keyword.into(), lines))
-        })
-        .collect::<Result<Vec<Section>, Error>>()?;
+    let sections = SectionIterator::new(
+        input,
+        &mut title,
+        &mut key,
+        &mut artist,
+        &mut language,
+        &mut tempo,
+        &mut time,
+    )
+    .map(|(keyword, lines)| {
+        let lines = lines
+            .iter()
+            .filter(|line| line.len() > 0)
+            .map(|line| {
+                let parts = PartIterator::new(line).collect::<Result<Vec<Part>, Error>>()?;
+                Ok(Line::new(parts))
+            })
+            .collect::<Result<Vec<Line>, Error>>()?;
+        Ok(Section::new(keyword.into(), lines))
+    })
+    .collect::<Result<Vec<Section>, Error>>()?;
 
     Ok(Song {
         title: title.ok_or(Error::Parse("no title given".into()))?,
         key: Some((key.ok_or(Error::Parse("no key given".into()))?.as_str()).try_into()?),
         artist,
         language,
+        tempo,
+        time,
         sections,
     }
     .normalize()

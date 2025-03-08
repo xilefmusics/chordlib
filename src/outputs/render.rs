@@ -1,12 +1,12 @@
 use super::{FormatOutputLines, OutputLine};
-use crate::types::{SimpleChord, Song};
+use crate::types::{Key, Song};
 
 pub trait FormatRender {
-    fn format_render(&self, key: Option<SimpleChord>, language: Option<usize>) -> String;
+    fn format_render(&self, key: Option<&Key>, language: Option<usize>) -> String;
 }
 
 impl FormatRender for Song {
-    fn format_render(&self, key: Option<SimpleChord>, language: Option<usize>) -> String {
+    fn format_render(&self, key: Option<&Key>, language: Option<usize>) -> String {
         self.format_output_lines(key, language)
             .iter()
             .map(|line| match line {

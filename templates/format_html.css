@@ -1,0 +1,111 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Verdana, sans-serif;
+}
+
+.page {
+  width: 794px;
+  height: 1123px;
+  transform-origin: top left;
+  overflow: hidden;
+  transform: scale({{ scale }});
+}
+
+.header {
+  height: 40px;
+  width: 674px;
+  margin: 60px 60px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 26px;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 13px;
+  margin: 0;
+  font-weight: normal;
+}
+
+.meta {
+  font-size: 13px;
+  text-align: right;
+}
+
+.columns {
+  column-count: 2;
+  column-gap: 30px;
+  margin: 0 60px 30px;
+  height: 973px;
+  width: 674px;
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.keyword, .chord {
+  font-weight: bold;
+  white-space: pre;
+}
+
+.text {
+  white-space: pre-wrap;
+}
+
+.part {
+  display: inline;
+  position: relative;
+  white-space: normal;
+}
+
+.part .chord {
+  position: absolute;
+  top: -1.2em;
+  left: 0;
+  width: auto;
+  font-weight: bold;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.comment {
+  font-style: italic;
+}
+
+p {
+  margin: 0 0 30px 0;
+  padding: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+
+}
+
+span {
+  font-kerning: none;
+  letter-spacing: 0;
+  word-spacing: normal;
+}
+
+sup {
+  font-size: 50%;
+}
+
+.bars {
+  width: 100%;
+  display: flex;
+  font-weight: bold;
+}
+
+.bars .chord {
+  flex: 1;
+}
+
+.bars .bar {
+  min-width: 15px;
+  text-align: center;
+}
