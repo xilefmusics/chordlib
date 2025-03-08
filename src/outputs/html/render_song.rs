@@ -23,10 +23,7 @@ impl FormatHTML for &Song {
             .clone()
             .into();
         let key = key.unwrap_or(&self_key);
-        let key_str = self
-            .key
-            .as_ref()
-            .map(|chord| SimpleChord::default().format(&Key::Chord(chord.clone())));
+        let key_str = SimpleChord::default().format(key);
 
         let subtitle = self.artist.as_deref().unwrap_or("").to_string();
 
@@ -40,7 +37,7 @@ impl FormatHTML for &Song {
                 HtmlPageTemplate::new()
                     .title(&self.title)
                     .subtitle(&subtitle)
-                    .key(&key_str)
+                    .key(key_str)
                     .tempo(&self.tempo)
                     .time(&self.time),
                 |template, section| template.section(section),

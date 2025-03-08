@@ -5,11 +5,15 @@
       <h2 class="subtitle">{{ subtitle }}</h2>
     </div>
       <div class="meta">
-        {% if key.is_some() %}
-          <span>Key {{ key.unwrap() }}</span><br>
-        {% endif %}
+        <span>Key {{ key }}</span><br>
         {% if tempo.is_some() && time.is_some() %}
           <span>{{ tempo.unwrap() }} BPM in {{ time.unwrap().0 }}/{{ time.unwrap().1 }}</span>
+        {% endif %}
+        {% if tempo.is_some() && time.is_none() %}
+          <span>{{ tempo.unwrap() }} BPM</span>
+        {% endif %}
+        {% if tempo.is_none() && time.is_some() %}
+          <span>{{ time.unwrap().0 }}/{{ time.unwrap().1 }}</span>
         {% endif %}
       </div>
   </div>

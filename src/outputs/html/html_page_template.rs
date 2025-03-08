@@ -5,7 +5,7 @@ use askama::Template;
 pub struct HtmlPageTemplate<'a> {
     title: &'a str,
     subtitle: &'a str,
-    key: &'a Option<&'a str>,
+    key: &'a str,
     tempo: &'a Option<u32>,
     time: &'a Option<(u32, u32)>,
     sections: Vec<String>,
@@ -16,7 +16,7 @@ impl<'a> HtmlPageTemplate<'a> {
         Self {
             title: "",
             subtitle: "",
-            key: &Some(""),
+            key: "",
             tempo: &None,
             time: &None,
             sections: Vec::new(),
@@ -33,7 +33,7 @@ impl<'a> HtmlPageTemplate<'a> {
         self
     }
 
-    pub fn key(mut self, key: &'a Option<&'a str>) -> Self {
+    pub fn key(mut self, key: &'a str) -> Self {
         self.key = key;
         self
     }
