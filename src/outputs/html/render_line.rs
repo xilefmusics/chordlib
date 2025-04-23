@@ -2,12 +2,7 @@ use super::render_part;
 use crate::types::{Key, Line};
 
 pub fn render_line(line: &Line, key: &Key, language: usize) -> String {
-    let has_chords = line.parts.iter().any(|part| part.chord.is_some());
     let mut result = String::with_capacity(256);
-
-    if has_chords {
-        result.push_str("<br>");
-    }
 
     let mut last_text_chars = 0;
     let mut last_chord_chars = 0;
