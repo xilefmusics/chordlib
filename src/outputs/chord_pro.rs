@@ -47,7 +47,11 @@ impl FormatChordPro for &Part {
             })
             .unwrap_or("".into());
         let language = language.unwrap_or(0);
-        format!("{}{}", chord, self.languages[language])
+        if self.comment {
+            format!("{}{{comment: {}}}", chord, self.languages[language])
+        } else {
+            format!("{}{}", chord, self.languages[language])
+        }
     }
 }
 
