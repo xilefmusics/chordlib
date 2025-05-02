@@ -76,10 +76,10 @@ impl<'a> Iterator for SectionIterator<'a> {
                                 self.lines_cache = Vec::default();
                             }
                         }
-                        _ => self.lines_cache.push(line),
+                        _ => self.lines_cache.push(line.trim_end()),
                     }
                 } else {
-                    self.lines_cache.push(line);
+                    self.lines_cache.push(line.trim_end());
                 }
             } else {
                 if let Some(title) = self.section_title_cache {

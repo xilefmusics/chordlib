@@ -28,6 +28,8 @@ pub fn render_part(part: &Part, key: &Key, language: usize) -> (String, usize, u
         result.push_str("\">");
         result.push_str(text);
         result.push_str("</span>");
+    } else {
+        result.push_str("<span class=\"text\"> </span>");
     }
 
     result.push_str("</span>");
