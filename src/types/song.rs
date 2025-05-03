@@ -35,4 +35,13 @@ impl Song {
             96
         }
     }
+
+    pub fn move_chords_to_next_vowels(mut self) -> Self {
+        self.sections = self
+            .sections
+            .into_iter()
+            .map(Section::move_chords_to_next_vowels)
+            .collect();
+        self
+    }
 }

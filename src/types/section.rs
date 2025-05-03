@@ -19,4 +19,13 @@ impl Section {
         }
         self
     }
+
+    pub fn move_chords_to_next_vowels(mut self) -> Self {
+        self.lines = self
+            .lines
+            .into_iter()
+            .map(Line::move_chords_to_next_vowels)
+            .collect();
+        self
+    }
 }

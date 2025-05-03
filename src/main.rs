@@ -17,6 +17,8 @@ struct Args {
     pub output: String,
     #[arg(short, long)]
     pub key: Option<u8>,
+    #[arg(short, long, default_value_t = false)]
+    pub vowel_move: bool,
 }
 
 fn main() -> Result<(), Error> {
@@ -35,6 +37,10 @@ fn main() -> Result<(), Error> {
 
     if let Some(key) = args.key {
         song.transpose(SimpleChord::new(key));
+    }
+
+    if args.vowel_move {
+        song = song.move_chords_to_next_vowels();
     }
 
     if args.render {
