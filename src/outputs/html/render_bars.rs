@@ -1,6 +1,11 @@
-use crate::types::{Key, Line};
+use crate::types::{ChordRepresentation, Line, SimpleChord};
 
-pub fn render_bars(lines: &[&Line], key: &Key, bar_duration: u32) -> String {
+pub fn render_bars(
+    lines: &[&Line],
+    key: &SimpleChord,
+    representation: &ChordRepresentation,
+    bar_duration: u32,
+) -> String {
     let mut columns: Vec<String> = Vec::new();
     for line in lines {
         let mut bars = vec![];
@@ -10,7 +15,7 @@ pub fn render_bars(lines: &[&Line], key: &Key, bar_duration: u32) -> String {
         for (chord_str, duration) in line.parts.iter().filter_map(|part| {
             part.chord.as_ref().map(|chord| {
                 (
-                    chord.format(key),
+                    chord.format(key, representation),
                     chord.get_duration().unwrap_or(bar_duration),
                 )
             })

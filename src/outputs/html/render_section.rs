@@ -1,5 +1,5 @@
 use super::{render_bars, render_line};
-use crate::types::{Key, Line, Section};
+use crate::types::{ChordRepresentation, Line, Section, SimpleChord};
 
 fn is_chord_only_line(line: &Line) -> bool {
     line.parts
@@ -7,7 +7,13 @@ fn is_chord_only_line(line: &Line) -> bool {
         .all(|part| part.languages.iter().all(|lang| lang.is_empty()))
 }
 
-pub fn render_section(section: &Section, key: &Key, language: usize, bar_duration: u32) -> String {
+pub fn render_section(
+    section: &Section,
+    key: &SimpleChord,
+    representation: &ChordRepresentation,
+    language: usize,
+    bar_duration: u32,
+) -> String {
     let mut content = String::new();
     let mut chord_only_line_buffer = Vec::new();
 
@@ -19,11 +25,17 @@ pub fn render_section(section: &Section, key: &Key, language: usize, bar_duratio
                 content.push_str(&render_bars::render_bars(
                     &chord_only_line_buffer,
                     key,
+                    representation,
                     bar_duration,
                 ));
                 chord_only_line_buffer.clear();
             }
-            content.push_str(&render_line::render_line(line, key, language));
+            content.push_str(&render_line::render_line(
+                line,
+                key,
+                representation,
+                language,
+            ));
         }
     }
 
@@ -31,6 +43,7 @@ pub fn render_section(section: &Section, key: &Key, language: usize, bar_duratio
         content.push_str(&render_bars::render_bars(
             &chord_only_line_buffer,
             key,
+            representation,
             bar_duration,
         ));
     }

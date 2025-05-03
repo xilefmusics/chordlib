@@ -1,11 +1,17 @@
-use crate::types::Key;
+use crate::types::{ChordRepresentation, SimpleChord};
 
 pub trait FormatHTML {
-    fn format_html(&self, key: Option<&Key>, language: Option<usize>, scale: Option<f32>)
-        -> String;
+    fn format_html(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+    ) -> String;
     fn format_html_page(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         scale: Option<f32>,
     ) -> (String, String);

@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use super::Key;
 use crate::error::Error;
 
 static CHORD_STRINGS_SHARP: &[&str] = &[
@@ -41,14 +40,14 @@ impl TryFrom<&str> for SimpleChord {
     type Error = Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        if let Some(level) = CHORD_STRINGS_SHARP.iter().position(|e| &s == e) {
+        if let Some(level) = CHORD_STRINGS_SHARP.iter().position(|e| *e == s) {
+            Ok(Self::new(level as u8))
+        } else if let Some(level) = CHORD_STRINGS_FLAT.iter().position(|e| *e == s) {
+            Ok(Self::new(level as u8))
+        } else if let Some(level) = CHORD_STRINGS_NASHVILLE.iter().position(|e| *e == s) {
             Ok(Self::new(level as u8))
         } else {
-            if let Some(level) = CHORD_STRINGS_FLAT.iter().position(|e| &s == e) {
-                Ok(Self::new(level as u8))
-            } else {
-                Err(Error::Parse(format!("unknown level, {}", s)))
-            }
+            Err(Error::Parse(format!("unknown level, {}", s)))
         }
     }
 }
@@ -66,14 +65,14 @@ impl SimpleChord {
         self.transpose(12 - key.level)
     }
 
-    pub fn format(&self, key: &Key) -> &'static str {
-        match key {
-            Key::Nashville => CHORD_STRINGS_NASHVILLE[self.level as usize],
-            Key::Chord(chord) => match chord.level {
+    pub fn format(&self, key: &SimpleChord, representation: &ChordRepresentation) -> &'static str {
+        match representation {
+            ChordRepresentation::Nashville => CHORD_STRINGS_NASHVILLE[self.level as usize],
+            ChordRepresentation::Default => match key.level {
                 0 | 2 | 3 | 5 | 7 | 9 | 10 => {
-                    CHORD_STRINGS_SHARP[((self.level + chord.level) % 12) as usize]
+                    CHORD_STRINGS_SHARP[((self.level + key.level) % 12) as usize]
                 }
-                _ => CHORD_STRINGS_FLAT[((self.level + chord.level) % 12) as usize],
+                _ => CHORD_STRINGS_FLAT[((self.level + key.level) % 12) as usize],
             },
         }
     }
@@ -81,6 +80,8 @@ impl SimpleChord {
 
 use serde::Deserializer;
 use serde_json::Value;
+
+use super::ChordRepresentation;
 fn float_or_int_to_int<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,

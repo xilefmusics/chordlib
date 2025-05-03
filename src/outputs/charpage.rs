@@ -1,5 +1,5 @@
 use super::{FormatOutputLines, OutputLine};
-use crate::types::{Key, Song};
+use crate::types::{ChordRepresentation, SimpleChord, Song};
 use std::cmp::max;
 use std::iter::{Chain, Repeat, Take, Zip};
 use std::slice::Iter;
@@ -171,7 +171,8 @@ pub trait FormatCharPages {
         &self,
         max_width: usize,
         max_height: usize,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
     ) -> Vec<CharPage>;
 }
@@ -181,7 +182,8 @@ impl FormatCharPages for &Song {
         &self,
         max_width: usize,
         max_height: usize,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
     ) -> Vec<CharPage> {
         let mut char_pages = vec![CharPage::new(max_width, max_height)];
@@ -189,7 +191,7 @@ impl FormatCharPages for &Song {
         for section in &self.sections {
             let lines = char_pages.last_mut().unwrap().try_add_lines(
                 section
-                    .format_output_lines(key, language)
+                    .format_output_lines(key, representation, language)
                     .into_iter()
                     .map(|line| match line {
                         OutputLine::Keyword(s) => CharPageLine::Keyword(s),

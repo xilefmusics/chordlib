@@ -1,9 +1,10 @@
-use crate::types::{Chord, Key, Line, Part, Section, SimpleChord, Song};
+use crate::types::{Chord, ChordRepresentation, Line, Part, Section, SimpleChord, Song};
 
 pub trait FormatChordPro {
     fn format_chord_pro(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         worship_pro_features: bool,
     ) -> String;
@@ -12,7 +13,8 @@ pub trait FormatChordPro {
 impl FormatChordPro for &Chord {
     fn format_chord_pro(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         _: Option<usize>,
         worship_pro_features: bool,
     ) -> String {
@@ -20,19 +22,26 @@ impl FormatChordPro for &Chord {
             if let Some(duration) = self.get_duration() {
                 return format!(
                     "{}:{}",
-                    self.format(key.unwrap_or(&Key::default())),
+                    self.format(
+                        key.unwrap_or(&SimpleChord::default()),
+                        representation.unwrap_or(&ChordRepresentation::default())
+                    ),
                     duration
                 );
             }
         }
-        self.format(key.unwrap_or(&Key::default()))
+        self.format(
+            key.unwrap_or(&SimpleChord::default()),
+            representation.unwrap_or(&ChordRepresentation::default()),
+        )
     }
 }
 
 impl FormatChordPro for &Part {
     fn format_chord_pro(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         worship_pro_features: bool,
     ) -> String {
@@ -42,7 +51,7 @@ impl FormatChordPro for &Part {
             .map(|chord| {
                 format!(
                     "[{}]",
-                    (&chord).format_chord_pro(key.clone(), language, worship_pro_features)
+                    (&chord).format_chord_pro(key, representation, language, worship_pro_features)
                 )
             })
             .unwrap_or("".into());
@@ -58,13 +67,14 @@ impl FormatChordPro for &Part {
 impl FormatChordPro for &Line {
     fn format_chord_pro(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         worship_pro_features: bool,
     ) -> String {
         self.parts
             .iter()
-            .map(|part| part.format_chord_pro(key, language, worship_pro_features))
+            .map(|part| part.format_chord_pro(key, representation, language, worship_pro_features))
             .collect()
     }
 }
@@ -72,16 +82,15 @@ impl FormatChordPro for &Line {
 impl FormatChordPro for &Section {
     fn format_chord_pro(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         worship_pro_features: bool,
     ) -> String {
         std::iter::once(format!("{{section: {}}}", self.title))
-            .chain(
-                self.lines
-                    .iter()
-                    .map(|line| line.format_chord_pro(key, language, worship_pro_features)),
-            )
+            .chain(self.lines.iter().map(|line| {
+                line.format_chord_pro(key, representation, language, worship_pro_features)
+            }))
             .collect::<Vec<String>>()
             .join("\n")
     }
@@ -90,7 +99,8 @@ impl FormatChordPro for &Section {
 impl FormatChordPro for &Song {
     fn format_chord_pro(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         worship_pro_features: bool,
     ) -> String {
@@ -98,7 +108,10 @@ impl FormatChordPro for &Song {
         let key = key.unwrap_or(&self_key);
         let mut meta = vec![
             format!("{{title: {}}}", self.title),
-            format!("{{key: {}}}", SimpleChord::default().format(&key)),
+            format!(
+                "{{key: {}}}",
+                SimpleChord::default().format(&key, &ChordRepresentation::default())
+            ),
         ];
         if let Some(artist) = &self.artist {
             meta.push(format!("{{artist: {}}}", artist));
@@ -114,11 +127,9 @@ impl FormatChordPro for &Song {
         }
 
         meta.into_iter()
-            .chain(
-                self.sections.iter().map(|section| {
-                    section.format_chord_pro(Some(key), language, worship_pro_features)
-                }),
-            )
+            .chain(self.sections.iter().map(|section| {
+                section.format_chord_pro(Some(key), representation, language, worship_pro_features)
+            }))
             .collect::<Vec<String>>()
             .join("\n")
     }

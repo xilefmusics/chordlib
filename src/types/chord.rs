@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use super::{Key, SimpleChord};
+use super::{ChordRepresentation, SimpleChord};
 use crate::error::Error;
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -114,14 +114,14 @@ impl Chord {
         self.duration
     }
 
-    pub fn format(&self, key: &Key) -> String {
+    pub fn format(&self, key: &SimpleChord, representation: &ChordRepresentation) -> String {
         format!(
             "{}{}{}{}",
-            self.main.format(&key),
+            self.main.format(&key, &representation),
             self.kind.format(),
             self.base
                 .clone()
-                .map(|base| format!("/{}", base.format(&key)))
+                .map(|base| format!("/{}", base.format(&key, &representation)))
                 .unwrap_or("".into()),
             self.var
         )
@@ -141,9 +141,10 @@ impl Chord {
                 return Ok((chord, &s[l1..]));
             }
         }
-        Err(Error::Parse(
-            "can not parse a simple chord from an empty string".into(),
-        ))
+        Err(Error::Parse(format!(
+            "can not parse a simple chord from the string: {}",
+            s
+        )))
     }
 
     fn parse_kind<'a>(s: &'a str) -> (Kind, &'a str) {

@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use chordlib::outputs::{FormatChordPro, FormatHTML, FormatRender};
-use chordlib::types::SimpleChord;
+use chordlib::types::{SimpleChord, ChordRepresentation};
 use chordlib::Error;
 
 #[derive(Debug, Parser)]
@@ -19,10 +19,18 @@ struct Args {
     pub key: Option<u8>,
     #[arg(short, long, default_value_t = false)]
     pub vowel_move: bool,
+    #[arg(short, long, default_value_t = false)]
+    pub nashville: bool,
 }
 
 fn main() -> Result<(), Error> {
     let args = Args::parse();
+
+    let representation = Some(if args.nashville {
+        ChordRepresentation::Nashville
+    } else {
+        ChordRepresentation::Default
+    });
 
     let mut song = if args.input.starts_with("https://tabs.ultimate-guitar.com/") {
         chordlib::inputs::ultimate_guitar::load_url(&args.input)
@@ -44,25 +52,25 @@ fn main() -> Result<(), Error> {
     }
 
     if args.render {
-        println!("{}", song.format_render(None, None));
+        println!("{}", song.format_render(None, representation.as_ref(), None));
     }
 
     if args.output.ends_with(".cp") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_chord_pro(None, None, false),
+            (&song).format_chord_pro(None, representation.as_ref(), None, false),
         )?)
     } else if args.output.ends_with(".wp") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_chord_pro(None, None, true),
+            (&song).format_chord_pro(None, representation.as_ref(), None, true),
         )?)
     } else if args.output.ends_with(".json") {
         Ok(std::fs::write(args.output, serde_json::to_string(&song)?)?)
     } else if args.output.ends_with(".html") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_html(None, None, None),
+            (&song).format_html(None, representation.as_ref(), None, None),
         )?)
     } else if args.output.len() == 0 {
         Ok(())

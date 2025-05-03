@@ -1,16 +1,12 @@
 use super::{render_section, CssTemplate, FormatHTML, HtmlPageTemplate, HtmlTemplate};
-use crate::types::{Key, SimpleChord, Song};
+use crate::types::{ChordRepresentation, SimpleChord, Song};
 use askama::Template;
-use lazy_static::lazy_static;
-
-lazy_static! {
-    static ref EMPTY_STRING: String = String::new();
-}
 
 impl FormatHTML for &Song {
     fn format_html_page(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         scale: Option<f32>,
     ) -> (String, String) {
@@ -23,7 +19,7 @@ impl FormatHTML for &Song {
             .clone()
             .into();
         let key = key.unwrap_or(&self_key);
-        let key_str = SimpleChord::default().format(key);
+        let key_str = SimpleChord::default().format(key, &ChordRepresentation::Default);
 
         let subtitle = self.artist.as_deref().unwrap_or("").to_string();
 
@@ -31,7 +27,15 @@ impl FormatHTML for &Song {
             .sections
             .iter()
             .map(|section| {
-                render_section::render_section(&section, key, language, self.bar_duration())
+                render_section::render_section(
+                    &section,
+                    key,
+                    representation
+                        .as_ref()
+                        .unwrap_or(&&ChordRepresentation::Default),
+                    language,
+                    self.bar_duration(),
+                )
             })
             .fold(
                 HtmlPageTemplate::new()
@@ -59,11 +63,12 @@ impl FormatHTML for &Song {
 
     fn format_html(
         &self,
-        key: Option<&Key>,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         scale: Option<f32>,
     ) -> String {
-        let (page, style) = self.format_html_page(key, language, scale);
+        let (page, style) = self.format_html_page(key, representation, language, scale);
         HtmlTemplate::new()
             .title(&self.title)
             .page(&page)

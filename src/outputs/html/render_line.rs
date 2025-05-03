@@ -1,11 +1,12 @@
 use super::render_part;
-use crate::types::{Key, Line, Part};
+use crate::types::{ChordRepresentation, Line, Part, SimpleChord};
 
 struct LineRenderer<'a> {
     parts: std::slice::Iter<'a, Part>,
     next_part: Option<(&'a Part, Option<usize>, Option<usize>, bool, bool)>,
     inside_word: bool,
-    key: &'a Key,
+    key: &'a SimpleChord,
+    representation: &'a ChordRepresentation,
     language: usize,
 }
 
@@ -35,23 +36,39 @@ impl<'a> Iterator for LineRenderer<'a> {
 
         self.inside_word = inside_word;
 
-        let (part, text_chars, chord_chars) =
-            render_part::render_part(part, self.key, self.language, start, end);
+        let (part, text_chars, chord_chars) = render_part::render_part(
+            part,
+            self.key,
+            self.representation,
+            self.language,
+            start,
+            end,
+        );
 
         Some((
             part,
-            Self::suffix(self.next_part.is_some(), inside_word, chord_chars as i32 - text_chars as i32 + 1),
+            Self::suffix(
+                self.next_part.is_some(),
+                inside_word,
+                chord_chars as i32 - text_chars as i32 + 1,
+            ),
         ))
     }
 }
 
 impl<'a> LineRenderer<'a> {
-    fn new(line: &'a Line, key: &'a Key, language: usize) -> Self {
+    fn new(
+        line: &'a Line,
+        key: &'a SimpleChord,
+        representation: &'a ChordRepresentation,
+        language: usize,
+    ) -> Self {
         let mut s = Self {
             parts: line.parts.iter(),
             next_part: None,
             inside_word: false,
             key,
+            representation,
             language,
         };
         s.update_next_part();
@@ -118,6 +135,11 @@ impl<'a> LineRenderer<'a> {
     }
 }
 
-pub fn render_line(line: &Line, key: &Key, language: usize) -> String {
-    LineRenderer::new(line, key, language).render()
+pub fn render_line(
+    line: &Line,
+    key: &SimpleChord,
+    representation: &ChordRepresentation,
+    language: usize,
+) -> String {
+    LineRenderer::new(line, key, representation, language).render()
 }

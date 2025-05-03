@@ -1,8 +1,9 @@
-use crate::types::{Key, Part};
+use crate::types::{ChordRepresentation, Part, SimpleChord};
 
 pub fn render_part(
     part: &Part,
-    key: &Key,
+    key: &SimpleChord,
+    representation: &ChordRepresentation,
     language: usize,
     mut start_word_position: Option<usize>,
     end_word_position: Option<usize>,
@@ -15,7 +16,7 @@ pub fn render_part(
 
     if let Some(chord) = &part.chord {
         result.push_str("<span class=\"part part-has-chord\">");
-        let formatted_chord = chord.format(key);
+        let formatted_chord = chord.format(key, representation);
         chord_chars = formatted_chord.chars().count();
         result.push_str("<span class=\"chord\">");
         result.push_str(&formatted_chord);
