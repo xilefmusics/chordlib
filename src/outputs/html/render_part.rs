@@ -1,11 +1,17 @@
 use crate::types::{Key, Part};
 
-pub fn render_part(part: &Part, key: &Key, language: usize) -> (String, usize, usize, bool, bool) {
+pub fn render_part(
+    part: &Part,
+    key: &Key,
+    language: usize,
+    mut start_word_position: Option<usize>,
+    end_word_position: Option<usize>,
+) -> (String, usize, usize) {
     let mut result = String::with_capacity(128);
     let mut text_chars = 0;
     let mut chord_chars = 0;
-    let mut first_whitespace = true;
-    let mut last_whitespace = true;
+
+    let comment_class = if part.comment { "comment" } else { "text" };
 
     if let Some(chord) = &part.chord {
         result.push_str("<span class=\"part part-has-chord\">");
@@ -19,13 +25,35 @@ pub fn render_part(part: &Part, key: &Key, language: usize) -> (String, usize, u
     }
 
     if let Some(text) = part.languages.get(language).filter(|t| !t.is_empty()) {
+        let mut text = text.as_str();
         text_chars = text.chars().count();
-        first_whitespace = text.chars().next().map_or(true, |c| c.is_whitespace());
-        last_whitespace = text.chars().last().map_or(true, |c| c.is_whitespace());
 
-        result.push_str("<span class=\"");
-        result.push_str(if part.comment { "comment" } else { "text" });
-        result.push_str("\">");
+        if let Some(end) = end_word_position {
+            let (before_end, after_end) = text.split_at(end);
+            text = after_end;
+            start_word_position = start_word_position.map(|s| s.saturating_sub(end));
+
+            result.push_str(&format!(
+                "<span class=\"{class}\">{before}</span></span></span>",
+                class = comment_class,
+                before = before_end
+            ));
+            result.push_str("<span class=\"part\">");
+            result.push_str(&format!("<span class=\"{class}\">", class = comment_class));
+        } else {
+            result.push_str(&format!("<span class=\"{class}\">", class = comment_class));
+        }
+
+        if let Some(start) = start_word_position {
+            let (before_start, after_start) = text.split_at(start + 1);
+            text = after_start;
+
+            result.push_str(before_start);
+            result.push_str("</span></span>");
+            result.push_str("<span class=\"word\"><span class=\"part\">");
+            result.push_str(&format!("<span class=\"{class}\">", class = comment_class));
+        }
+
         result.push_str(text);
         result.push_str("</span>");
     } else {
@@ -34,11 +62,5 @@ pub fn render_part(part: &Part, key: &Key, language: usize) -> (String, usize, u
 
     result.push_str("</span>");
 
-    (
-        result,
-        text_chars,
-        chord_chars,
-        first_whitespace,
-        last_whitespace,
-    )
+    (result, text_chars, chord_chars)
 }

@@ -78,6 +78,10 @@ body {
   text-align: center;
 }
 
+.word {
+  white-space: nowrap;
+}
+
 .comment {
   font-style: italic;
 }
