@@ -40,7 +40,7 @@ impl<'a> Iterator for LineRenderer<'a> {
 
         Some((
             part,
-            Self::suffix(inside_word, chord_chars as i32 - text_chars as i32 + 1),
+            Self::suffix(self.next_part.is_some(), inside_word, chord_chars as i32 - text_chars as i32 + 1),
         ))
     }
 }
@@ -89,8 +89,8 @@ impl<'a> LineRenderer<'a> {
         });
     }
 
-    fn suffix(inside_word: bool, diff: i32) -> String {
-        if diff < 0 {
+    fn suffix(has_next: bool, inside_word: bool, diff: i32) -> String {
+        if !has_next || diff < 0 {
             return "".to_string();
         }
         let diff = diff as usize;
