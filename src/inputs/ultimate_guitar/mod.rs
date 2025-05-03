@@ -1,6 +1,6 @@
 use crate::error::Error;
 
-use crate::types::{Line, Part, Section, SimpleChord, Song};
+use crate::types::{Line, Part, Section, Song};
 
 mod iter_part;
 mod iter_section;
@@ -54,10 +54,12 @@ pub fn load_html(html: &str) -> Result<Song, Error> {
         .ok_or(Error::Parse("title not found".into()))?;
     let artist = get_nested_field(&json, &["store", "page", "data", "tab", "artist_name"])
         .ok_or(Error::Parse("artist not found".into()))?;
-    load_string(&content, title, artist)
+    let key = get_nested_field(&json, &["store", "page", "data", "tab", "tonality_name"])
+        .ok_or(Error::Parse("key not found".into()))?;
+    load_string(&content, title, artist, key)
 }
 
-pub fn load_string(content: &str, title: &str, artist: &str) -> Result<Song, Error> {
+pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Result<Song, Error> {
     let sections = SectionIterator::new(&content)
         .map(|section| {
             let index = section.find('\n').unwrap();
@@ -71,10 +73,10 @@ pub fn load_string(content: &str, title: &str, artist: &str) -> Result<Song, Err
             Ok(Section::new(title, lines))
         })
         .collect::<Result<Vec<Section>, Error>>()?;
-    let key = SimpleChord::default();
+
     Ok(Song {
         title: title.into(),
-        key: Some(key),
+        key: Some(key.try_into()?),
         artist: Some(artist.into()),
         language: None, // TODO: parse language
         tempo: None,    // TODO: parse tempo
