@@ -10,6 +10,7 @@ use iter_part::PartIterator;
 use iter_section::SectionIterator;
 use iter_tab::TabIterator;
 
+#[cfg(feature = "html")]
 fn get_nested_field<'a>(json: &'a serde_json::Value, keys: &[&str]) -> Option<&'a str> {
     let mut current_value = json;
     for key in keys {
