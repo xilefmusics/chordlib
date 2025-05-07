@@ -107,7 +107,7 @@ impl<'a> LineRenderer<'a> {
     }
 
     fn suffix(has_next: bool, inside_word: bool, diff: i32) -> String {
-        if !has_next || diff < 0 {
+        if !has_next || diff < 1 {
             return "".to_string();
         }
         let diff = diff as usize;
