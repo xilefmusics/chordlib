@@ -35,6 +35,7 @@ pub struct Chord {
     kind: Kind,
     var: String,
     duration: Option<u32>,
+    optional: bool,
 }
 
 impl Chord {
@@ -115,15 +116,19 @@ impl Chord {
     }
 
     pub fn format(&self, key: &SimpleChord, representation: &ChordRepresentation) -> String {
+        let (optional_start, optional_end) = if self.optional { ("(", ")") } else { ("", "") };
+
         format!(
-            "{}{}{}{}",
+            "{}{}{}{}{}{}",
+            optional_start,
             self.main.format(&key, &representation),
             self.kind.format(),
             self.base
                 .clone()
                 .map(|base| format!("/{}", base.format(&key, &representation)))
                 .unwrap_or("".into()),
-            self.var
+            self.var,
+            optional_end,
         )
     }
 
@@ -212,7 +217,12 @@ impl Chord {
 impl FromStr for Chord {
     type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
+        let optional = s.starts_with('(') && s.ends_with(')');
+        if optional {
+            s = &s[1..s.len() - 1];
+        }
+
         let (duration, s) = Self::parse_duration(s)?;
         let (main, s) = Self::parse_simple_chord(s)?;
         let (kind, s) = Self::parse_kind(s);
@@ -225,6 +235,7 @@ impl FromStr for Chord {
             kind,
             var: var.to_string(),
             duration,
+            optional,
         })
     }
 }
