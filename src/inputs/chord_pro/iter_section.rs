@@ -1,5 +1,7 @@
 pub struct SectionIterator<'a> {
     title: &'a mut Option<String>,
+    subtitle: &'a mut Option<String>,
+    copyright: &'a mut Option<String>,
     key: &'a mut Option<String>,
     artist: &'a mut Option<String>,
     language: &'a mut Option<String>,
@@ -14,6 +16,8 @@ impl<'a> SectionIterator<'a> {
     pub fn new(
         content: &'a str,
         title: &'a mut Option<String>,
+        subtitle: &'a mut Option<String>,
+        copyright: &'a mut Option<String>,
         key: &'a mut Option<String>,
         artist: &'a mut Option<String>,
         language: &'a mut Option<String>,
@@ -22,6 +26,8 @@ impl<'a> SectionIterator<'a> {
     ) -> Self {
         Self {
             title,
+            subtitle,
+            copyright,
             key,
             artist,
             language,
@@ -57,6 +63,8 @@ impl<'a> Iterator for SectionIterator<'a> {
                 if let Some((key, value)) = Self::parse_key_value(line) {
                     match key {
                         "title" => *self.title = Some(value.into()),
+                        "subtitle" => *self.subtitle = Some(value.into()),
+                        "copyright" => *self.copyright = Some(value.into()),
                         "key" => *self.key = Some(value.into()),
                         "artist" => *self.artist = Some(value.into()),
                         "language" => *self.language = Some(value.into()),

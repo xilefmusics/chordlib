@@ -5,6 +5,8 @@ use super::{Section, SimpleChord};
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Song {
     pub title: String,
+    pub subtitle: Option<String>,
+    pub copyright: Option<String>,
     pub key: Option<SimpleChord>,
     pub artist: Option<String>,
     pub language: Option<String>,

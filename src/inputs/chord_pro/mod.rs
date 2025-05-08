@@ -12,6 +12,8 @@ pub fn load(path: &str) -> Result<Song, Error> {
 
 pub fn load_string(input: &str) -> Result<Song, Error> {
     let mut title = None;
+    let mut subtitle = None;
+    let mut copyright = None;
     let mut key = None;
     let mut artist = None;
     let mut language = None;
@@ -21,6 +23,8 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     let sections = SectionIterator::new(
         input,
         &mut title,
+        &mut subtitle,
+        &mut copyright,
         &mut key,
         &mut artist,
         &mut language,
@@ -42,6 +46,8 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
 
     Ok(Song {
         title: title.ok_or(Error::Parse("no title given".into()))?,
+        subtitle,
+        copyright,
         key: Some((key.ok_or(Error::Parse("no key given".into()))?.as_str()).try_into()?),
         artist,
         language,

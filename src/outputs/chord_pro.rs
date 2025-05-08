@@ -113,6 +113,12 @@ impl FormatChordPro for &Song {
                 SimpleChord::default().format(&key, &ChordRepresentation::default())
             ),
         ];
+        if let Some(subtitle) = &self.subtitle {
+            meta.push(format!("{{subtitle: {}}}", subtitle));
+        }
+        if let Some(copyright) = &self.copyright {
+            meta.push(format!("{{coptyright: {}}}", copyright));
+        }
         if let Some(artist) = &self.artist {
             meta.push(format!("{{artist: {}}}", artist));
         }

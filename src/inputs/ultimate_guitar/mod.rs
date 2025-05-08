@@ -76,6 +76,8 @@ pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Resul
 
     Ok(Song {
         title: title.into(),
+        subtitle: None, // TODO: parse subtitle
+        copyright: None, // TODO: parse copyright
         key: Some(key.try_into()?),
         artist: Some(artist.into()),
         language: None, // TODO: parse language
