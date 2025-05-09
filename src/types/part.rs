@@ -88,6 +88,14 @@ impl Part {
             comment: true,
         }
     }
+
+    pub fn new_chord(c: Chord) -> Self {
+        Self {
+            chord: Some(c),
+            languages: vec!["".to_string()], // TODO: allow empty
+            comment: false,
+        }
+    }
 }
 
 impl TryFrom<(&str, &str)> for Part {
