@@ -46,4 +46,13 @@ impl Song {
             .collect();
         self
     }
+
+    pub fn remove_manual_spacing(mut self) -> Self {
+        self.sections = self
+            .sections
+            .into_iter()
+            .map(Section::remove_manual_spacing)
+            .collect();
+        self
+    }
 }

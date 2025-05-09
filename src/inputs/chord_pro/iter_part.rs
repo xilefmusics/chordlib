@@ -11,7 +11,7 @@ impl<'a> PartIterator<'a> {
     pub fn new(line: &'a str, bar_duration: u32, ) -> Self {
         Self {
             bar_duration,
-            line,
+            line: line.trim(),
             chord_cache: Vec::new(),
         }
     }

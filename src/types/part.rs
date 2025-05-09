@@ -41,6 +41,25 @@ fn find_first_vowel(text: &str) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
+fn normalize_whitespace(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut in_whitespace = false;
+
+    for c in input.chars() {
+        if c.is_whitespace() {
+            if !in_whitespace {
+                result.push(' ');
+                in_whitespace = true;
+            }
+        } else {
+            result.push(c);
+            in_whitespace = false;
+        }
+    }
+
+    result
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Part {
     pub chord: Option<Chord>,
@@ -74,6 +93,57 @@ impl Part {
         }
 
         (self, prev)
+    }
+
+    pub fn remove_manual_spacing(
+        mut self,
+        mut prev: Option<Self>,
+        mut next: Option<Self>,
+    ) -> (Self, Option<Self>, Option<Self>) {
+        for language in 0..self
+            .languages
+            .len()
+            .min(
+                prev.as_ref()
+                    .map(|p| p.languages.len())
+                    .unwrap_or(usize::MAX),
+            )
+            .min(
+                next.as_ref()
+                    .map(|p| p.languages.len())
+                    .unwrap_or(usize::MAX),
+            )
+        {
+            self.languages[language] = self.languages[language].replace("\t", " ");
+            self.languages[language] = self.languages[language].replace(" - ", "");
+            self.languages[language] = normalize_whitespace(&self.languages[language]);
+
+            if prev.is_none() {
+                self.languages[language] = self.languages[language].trim_start().to_string();
+            }
+
+            if let Some(prev) = prev.as_mut() {
+                if self.languages[language].starts_with("- ")
+                    && prev.languages[language].ends_with(' ')
+                {
+                    let new_len = prev.languages[language].len() - 1;
+                    prev.languages[language].truncate(new_len);
+                    self.languages[language] = self.languages[language].split_off(2)
+                }
+            }
+
+            if let Some(next) = next.as_mut() {
+                if self.languages[language].starts_with("- ")
+                    && next.languages[language].ends_with(' ')
+                {
+                    let new_len = self.languages[language].len() - 2;
+                    self.languages[language].truncate(new_len);
+                    next.languages[language] = next.languages[language].split_off(2)
+                }
+            }
+        }
+
+        (self, prev, next)
     }
 
     pub fn normalize(&mut self, key: &SimpleChord) -> &mut Self {

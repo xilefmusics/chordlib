@@ -28,4 +28,13 @@ impl Section {
             .collect();
         self
     }
+
+    pub fn remove_manual_spacing(mut self) -> Self {
+        self.lines = self
+            .lines
+            .into_iter()
+            .map(Line::remove_manual_spacing)
+            .collect();
+        self
+    }
 }

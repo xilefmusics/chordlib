@@ -20,6 +20,8 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     pub vowel_move: bool,
     #[arg(short, long, default_value_t = false)]
+    pub spacing_remove: bool,
+    #[arg(short, long, default_value_t = false)]
     pub nashville: bool,
 }
 
@@ -49,6 +51,10 @@ fn main() -> Result<(), Error> {
 
     if args.vowel_move {
         song = song.move_chords_to_next_vowels();
+    }
+
+    if args.spacing_remove {
+        song = song.remove_manual_spacing();
     }
 
     if args.render {

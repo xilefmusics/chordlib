@@ -31,26 +31,43 @@ impl Line {
             parts[i - 1] = new_prev;
         }
 
-        // Handle the first part separately
-        if !parts.is_empty() {
-            let current = std::mem::take(&mut parts[0]);
-
-            let empty = Part {
-                chord: None,
-                comment: current.comment,
-                languages: vec![String::new(); current.languages.len()],
-            };
-
-            let (new_current, new_insert) = current.move_chord_to_next_vowel(empty);
-
-            if new_insert.languages.iter().any(|s| !s.is_empty()) {
-                parts[0] = new_current;
-                parts.insert(0, new_insert);
-            } else {
-                parts[0] = new_current;
-            }
-        }
-
         Line { parts }
+    }
+
+    pub fn remove_manual_spacing(mut self) -> Self {
+        let len = self.parts.len();
+        let mut i = 0;
+    
+        while i < len {
+            let current = std::mem::replace(&mut self.parts[i], Part::default());
+    
+            let prev = if i > 0 {
+                Some(std::mem::replace(&mut self.parts[i - 1], Part::default()))
+            } else {
+                None
+            };
+    
+            let next = if i + 1 < len {
+                Some(std::mem::replace(&mut self.parts[i + 1], Part::default()))
+            } else {
+                None
+            };
+    
+            let (new_current, new_prev, new_next) = current.remove_manual_spacing(prev, next);
+    
+            if let Some(p) = new_prev {
+                self.parts[i - 1] = p;
+            }
+    
+            self.parts[i] = new_current;
+    
+            if let Some(n) = new_next {
+                self.parts[i + 1] = n;
+            }
+    
+            i += 1;
+        }
+    
+        self
     }
 }
