@@ -162,7 +162,7 @@ impl Part {
     pub fn new_chord(c: Chord) -> Self {
         Self {
             chord: Some(c),
-            languages: vec!["".to_string()], // TODO: allow empty
+            languages: vec![],
             comment: false,
         }
     }

@@ -36,7 +36,10 @@ fn main() -> Result<(), Error> {
 
     let mut song = if args.input.starts_with("https://tabs.ultimate-guitar.com/") {
         chordlib::inputs::ultimate_guitar::load_url(&args.input)
-    } else if args.input.ends_with(".cp") || args.input.ends_with(".wp") || args.input.ends_with(".chopro") {
+    } else if args.input.ends_with(".cp")
+        || args.input.ends_with(".wp")
+        || args.input.ends_with(".chopro")
+    {
         chordlib::inputs::chord_pro::load(&args.input)
     } else {
         Err(Error::Other(format!(
@@ -64,7 +67,7 @@ fn main() -> Result<(), Error> {
         );
     }
 
-    if args.output.ends_with(".cp") {
+    if args.output.ends_with(".cp") || args.output.ends_with(".chopro") {
         Ok(std::fs::write(
             args.output,
             (&song).format_chord_pro(None, representation.as_ref(), None, false),
