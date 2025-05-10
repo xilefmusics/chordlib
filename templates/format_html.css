@@ -37,11 +37,31 @@ body {
   text-align: right;
 }
 
+.footer {
+  height: 40px;
+  width: 674px;
+  margin: 0 60px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.copyright {
+  font-size: 13px;
+  margin: 0;
+  font-weight: normal;
+}
+
 .columns {
   column-count: 2;
   column-gap: 30px;
+  {% if has_footer %}
+  margin: 0 60px 0;
+  height: 933px;
+  {% else %}
   margin: 0 60px 30px;
   height: 973px;
+  {% endif %}
   width: 674px;
   box-sizing: border-box;
   font-size: 13px;

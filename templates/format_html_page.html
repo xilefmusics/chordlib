@@ -22,4 +22,9 @@
       {{ section }}
     {% endfor %}
   </div>
+  {% if copyright.is_some() %}
+  <div class="footer">
+    <span class="copyright">{{ copyright.as_ref().unwrap() }}</span>
+  </div>
+  {% endif %}
 </div> 

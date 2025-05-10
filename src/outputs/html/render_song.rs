@@ -21,7 +21,15 @@ impl FormatHTML for &Song {
         let key = key.unwrap_or(&self_key);
         let key_str = SimpleChord::default().format(key, &ChordRepresentation::Default);
 
-        let subtitle = self.artist.as_deref().unwrap_or("").to_string();
+        let subtitle = match (
+            self.subtitle.as_deref().filter(|s| !s.is_empty()),
+            self.artist.as_deref().filter(|s| !s.is_empty()),
+        ) {
+            (Some(sub), Some(art)) => format!("{sub} | {art}"),
+            (Some(sub), None) => sub.to_string(),
+            (None, Some(art)) => art.to_string(),
+            (None, None) => String::new(),
+        };
 
         let page_template = self
             .sections
@@ -43,12 +51,13 @@ impl FormatHTML for &Song {
                     .subtitle(&subtitle)
                     .key(key_str)
                     .tempo(&self.tempo)
-                    .time(&self.time),
+                    .time(&self.time)
+                    .copyright(&self.copyright),
                 |template, section| template.section(section),
             );
 
         let style_template = {
-            let mut template = CssTemplate::new();
+            let mut template = CssTemplate::new().has_footer(self.copyright.is_some());
             if let Some(scale) = scale {
                 template = template.scale(scale);
             }

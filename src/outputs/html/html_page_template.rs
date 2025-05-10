@@ -9,6 +9,7 @@ pub struct HtmlPageTemplate<'a> {
     tempo: &'a Option<u32>,
     time: &'a Option<(u32, u32)>,
     sections: Vec<String>,
+    copyright: &'a Option<String>,
 }
 
 impl<'a> HtmlPageTemplate<'a> {
@@ -20,6 +21,7 @@ impl<'a> HtmlPageTemplate<'a> {
             tempo: &None,
             time: &None,
             sections: Vec::new(),
+            copyright: &None,
         }
     }
 
@@ -50,6 +52,11 @@ impl<'a> HtmlPageTemplate<'a> {
 
     pub fn section(mut self, section: String) -> Self {
         self.sections.push(section);
+        self
+    }
+
+    pub fn copyright(mut self, copyright: &'a Option<String>) -> Self {
+        self.copyright = copyright;
         self
     }
 }
