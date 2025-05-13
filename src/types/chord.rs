@@ -35,6 +35,7 @@ pub struct Chord {
     kind: Kind,
     var: String,
     duration: Option<u32>,
+    #[serde(default)]
     optional: bool,
 }
 

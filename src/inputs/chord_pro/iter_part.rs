@@ -8,7 +8,7 @@ pub struct PartIterator<'a> {
 }
 
 impl<'a> PartIterator<'a> {
-    pub fn new(line: &'a str, bar_duration: u32, ) -> Self {
+    pub fn new(line: &'a str, bar_duration: u32) -> Self {
         Self {
             bar_duration,
             line: line.trim(),
@@ -23,7 +23,7 @@ impl<'a> PartIterator<'a> {
             ));
         };
 
-        let comment = &self.line[..idx+1];
+        let comment = &self.line[..idx + 1];
         self.line = &self.line[idx + 1..];
         return Ok(Part::new_comment(comment.to_string()));
     }
@@ -89,7 +89,7 @@ impl<'a> PartIterator<'a> {
                 Ok(c) => c,
                 Err(e) => return Some(Err(e)),
             });
-            
+
             self.line = &self.line[end_idx + 1..];
         }
 

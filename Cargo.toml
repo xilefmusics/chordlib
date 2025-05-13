@@ -16,4 +16,3 @@ lazy_static = "1.5.0"
 download = ["reqwest"]
 html = ["scraper"]
 bin = ["clap"]
-

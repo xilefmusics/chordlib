@@ -38,8 +38,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
             .iter()
             .filter(|line| line.len() > 0)
             .map(|line| {
-                let parts = PartIterator::new(line, 96)
-                    .collect::<Result<Vec<Part>, Error>>()?;
+                let parts = PartIterator::new(line, 96).collect::<Result<Vec<Part>, Error>>()?;
                 Ok(Line::new(parts))
             })
             .collect::<Result<Vec<Line>, Error>>()?;
