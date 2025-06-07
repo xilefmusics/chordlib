@@ -12,33 +12,27 @@ impl<'a> Iterator for SectionIterator<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while !self.content.starts_with("[")
-            || self.content.starts_with("[tab]")
-            || self.content.starts_with("[/tab]")
-            || self.content.starts_with("[ch]")
-            || self.content.starts_with("[/ch]")
-        {
-            self.content = &self.content[self.content.find('\n')? + 1..]
+        if self.content.is_empty() {
+            return None;
         }
 
-        let mut index = None;
-        for (byte_index, _) in self.content.char_indices() {
-            let next_section = &self.content[byte_index..];
-            let first_char_len = next_section.chars().next().map_or(0, |c| c.len_utf8());
-            let next_section = &next_section[first_char_len..];
-            if next_section.starts_with("[")
-                && !next_section.starts_with("[tab]")
-                && !next_section.starts_with("[/tab]")
-                && !next_section.starts_with("[ch]")
-                && !next_section.starts_with("[/ch]")
-            {
-                index = Some(byte_index);
-                break;
-            }
-        }
-        let result = &self.content[..index?].trim_end_matches('\n');
-        self.content = &self.content[index?..];
+        let cutoff = self
+            .content
+            .lines()
+            .enumerate()
+            .take_while(|(idx, line)| {
+                *idx == 0
+                    || !line.starts_with('[')
+                    || line.starts_with("[tab")
+                    || line.starts_with("[/tab")
+                    || line.starts_with("[ch")
+                    || line.starts_with("[/ch")
+            })
+            .map(|(_, line)| line.len() + 1)
+            .sum::<usize>();
 
-        Some(result)
+        let section = &self.content[..cutoff.min(self.content.len())];
+        self.content = &self.content[cutoff.min(self.content.len())..];
+        Some(section)
     }
 }

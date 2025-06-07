@@ -5,6 +5,7 @@ use crate::types::{Line, Part, Section, Song};
 mod iter_part;
 mod iter_section;
 mod iter_tab;
+mod parse_header;
 
 use iter_part::PartIterator;
 use iter_section::SectionIterator;
@@ -60,7 +61,15 @@ pub fn load_html(html: &str) -> Result<Song, Error> {
 }
 
 pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Result<Song, Error> {
-    let sections = SectionIterator::new(&content)
+    let mut section_iter = SectionIterator::new(content);
+
+    let mut tempo = None;
+    let mut time = None;
+    if let Some(header) = section_iter.next() {
+        (tempo, time) = parse_header::parse_header(header);
+    }
+
+    let sections = section_iter
         .map(|section| {
             let index = section.find('\n').unwrap();
             let title = section[1..index - 1].to_string();
@@ -81,8 +90,8 @@ pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Resul
         key: Some(key.try_into()?),
         artist: Some(artist.into()),
         language: None, // TODO: parse language
-        tempo: None,    // TODO: parse tempo
-        time: None,     // TODO: parse time
+        tempo,
+        time,
         sections,
     }
     .normalize()
