@@ -46,7 +46,7 @@ impl<'a> PartIterator<'a> {
         let (key, value) = comment.split_at(colon_idx);
 
         if matches!(key, "c" | "cb" | "ci" | "comment") {
-            return Ok(Part::new_comment(value.to_string()));
+            return Ok(Part::new_comment((&value[1..].trim()).to_string()));
         }
 
         Err(Error::Parse(format!("failed parsing comment: {comment}")))
