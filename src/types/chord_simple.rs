@@ -76,6 +76,25 @@ impl SimpleChord {
             },
         }
     }
+
+    pub fn guess_key(key: &str) -> SimpleChord {
+        let chord = match SimpleChord::try_from(&key[..1]) {
+            Ok(chord) => chord,
+            Err(_) => return SimpleChord::default(),
+        };
+
+        let chord = if key.len() > 1 {
+            SimpleChord::try_from(&key[..2]).unwrap_or(chord)
+        } else {
+            chord
+        };
+
+        if key.contains('m') {
+            chord.transpose(3)
+        } else {
+            chord
+        }
+    }
 }
 
 use serde::Deserializer;

@@ -1,6 +1,6 @@
 use crate::error::Error;
 
-use crate::types::{Line, Part, Section, Song};
+use crate::types::{Line, Part, Section, SimpleChord, Song};
 
 mod iter_part;
 mod iter_section;
@@ -87,7 +87,7 @@ pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Resul
         title: title.into(),
         subtitle: None,  // TODO: parse subtitle
         copyright: None, // TODO: parse copyright
-        key: Some(key.try_into()?),
+        key: Some(SimpleChord::guess_key(key)),
         artist: Some(artist.into()),
         language: None, // TODO: parse language
         tempo,
