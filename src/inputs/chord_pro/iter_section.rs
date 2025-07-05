@@ -39,6 +39,7 @@ impl<'a> SectionIterator<'a> {
         }
     }
     fn parse_key_value(input: &str) -> Option<(&str, &str)> {
+        let input = input.trim();
         if input.starts_with('{') && input.ends_with('}') {
             let inner = &input[1..input.len() - 1];
             if let Some(index) = inner.find(':') {
