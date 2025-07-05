@@ -78,6 +78,10 @@ impl SimpleChord {
     }
 
     pub fn guess_key(key: &str) -> SimpleChord {
+        if key.is_empty() {
+            return SimpleChord::default();
+        }
+
         let chord = match SimpleChord::try_from(&key[..1]) {
             Ok(chord) => chord,
             Err(_) => return SimpleChord::default(),
