@@ -78,11 +78,15 @@ impl FormatHTML for &Song {
         scale: Option<f32>,
     ) -> String {
         let (page, style) = self.format_html_page(key, representation, language, scale);
-        HtmlTemplate::new()
-            .title(&self.title)
-            .page(&page)
-            .style(&style)
-            .render()
-            .unwrap()
+        wrap_html(&page, &style, &self.title)
     }
+}
+
+pub fn wrap_html(html: &str, css: &str, title: &str) -> String {
+    HtmlTemplate::new()
+        .title(title)
+        .page(html)
+        .style(css)
+        .render()
+        .unwrap()
 }
