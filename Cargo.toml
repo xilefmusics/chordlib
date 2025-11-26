@@ -2,6 +2,14 @@
 name = "chordlib"
 version = "0.1.0"
 edition = "2021"
+description = "Work with chord-and-lyrics songs: parse, transform, and render them to multiple formats"
+license = "GPL-3.0-only"
+repository = "https://github.com/xilefmusics/chordlib"
+homepage = "https://github.com/xilefmusics/chordlib"
+documentation = "https://docs.rs/chordlib"
+readme = "README.md"
+keywords = ["chords", "lyrics", "guitar", "chordpro", "songs"]
+categories = ["multimedia::audio", "command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.5.38", features = ["derive"], optional = true }
@@ -16,3 +24,11 @@ lazy_static = "1.5.0"
 download = ["reqwest"]
 html = ["scraper"]
 bin = ["clap"]
+
+[[bin]]
+name = "chordlib"
+path = "src/main.rs"
+required-features = ["bin"]
+
+[package.metadata.docs.rs]
+all-features = true
