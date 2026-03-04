@@ -36,10 +36,3 @@ impl From<serde_json::Error> for Error {
         Self::Serialize(err.to_string())
     }
 }
-
-#[cfg(feature = "download")]
-impl From<reqwest::Error> for Error {
-    fn from(err: reqwest::Error) -> Self {
-        Self::Http(err.to_string())
-    }
-}

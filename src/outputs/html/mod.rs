@@ -10,6 +10,6 @@ mod render_song;
 
 use css_template::CssTemplate;
 pub use format_html::FormatHTML;
-pub use render_song::wrap_html;
 use html_page_template::HtmlPageTemplate;
 use html_template::HtmlTemplate;
+pub use render_song::wrap_html;

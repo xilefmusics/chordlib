@@ -253,7 +253,7 @@ mod test {
         ];
         let outputs = vec![
             Err(Error::Parse(
-                "can not parse a simple chord from an empty string".into(),
+                "can not parse a simple chord from the string: ".into(),
             )),
             Ok(Chord::new(0)),
             Ok(Chord::new(1)),

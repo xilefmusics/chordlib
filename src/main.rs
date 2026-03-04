@@ -7,7 +7,7 @@ use chordlib::Error;
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// The input (file or url)
+    /// The input song file (ChordPro)
     pub input: String,
     /// A boolean flag if the song should be rendered to the stdout
     #[arg(short, long, default_value_t = false)]
@@ -34,9 +34,7 @@ fn main() -> Result<(), Error> {
         ChordRepresentation::Default
     });
 
-    let mut song = if args.input.starts_with("https://tabs.ultimate-guitar.com/") {
-        chordlib::inputs::ultimate_guitar::load_url(&args.input)
-    } else if args.input.ends_with(".cp")
+    let mut song = if args.input.ends_with(".cp")
         || args.input.ends_with(".wp")
         || args.input.ends_with(".chopro")
     {
