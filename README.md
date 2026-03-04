@@ -8,10 +8,10 @@ Rust helpers to parse, transform, and render chord-and-lyrics songs. The crate u
 cargo add chordlib
 ```
 
-To install the CLI, enable the `bin` feature (and optionally `download`/`html`):
+To install the CLI, enable the `bin` feature (and optionally `html` for Ultimate Guitar HTML parsing support):
 
 ```bash
-cargo install chordlib --features "bin download html"
+cargo install chordlib --features "bin html"
 ```
 
 ## Library example
@@ -37,20 +37,21 @@ fn main() -> Result<(), chordlib::Error> {
 
 ## CLI quick start
 
-Render an Ultimate Guitar tab to HTML:
+Render a ChordPro file to HTML:
 
 ```bash
-chordlib https://tabs.ultimate-guitar.com/tab/artist/song-123456 \
+chordlib path/to/song.cp \
   --render \
   --output song.html
 ```
 
 The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.cp`/`.wp`), HTML, and JSON.
 
+To parse an Ultimate Guitar tab from HTML, first obtain the HTML (for example by saving the page in a browser), read it into a string, and then call `chordlib::inputs::ultimate_guitar::load_html(&html)` from your own code. The library no longer performs live HTTP requests to Ultimate Guitar.
+
 ## Feature flags
 
 - `bin`: build the `chordlib` CLI.
-- `download`: fetch Ultimate Guitar tabs over HTTP.
 - `html`: parse HTML tabs and render HTML output.
 
 ## License
