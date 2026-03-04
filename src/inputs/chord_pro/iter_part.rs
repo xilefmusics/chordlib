@@ -66,10 +66,17 @@ impl<'a> PartIterator<'a> {
             return self.handle_pipe_chord();
         }
 
+        // CCLI SongSelect repeat markers [||:] and [:||] are not chords; strip them
+        // so import does not fail. See https://github.com/xilefmusics/chordlib/issues/6
+        let is_repeat_marker = matches!(chord.trim(), "||:" | ":||");
+
         let idx = self.line.find(['[', '{']).unwrap_or(self.line.len());
         let (text, rest) = self.line.split_at(idx);
         self.line = rest;
 
+        if is_repeat_marker {
+            return Some(("", text).try_into());
+        }
         Some((chord, text).try_into())
     }
 
