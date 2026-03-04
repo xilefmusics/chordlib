@@ -80,3 +80,42 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     .normalize()
     .clone())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::types::ChordRepresentation;
+
+    use super::*;
+
+    /// ChordPro with CCLI-style repeat markers [||:] and [:||] must import without error;
+    /// markers are stripped and only real chords (e.g. [G][C][D]) are parsed.
+    /// See: https://github.com/xilefmusics/chordlib/issues/6
+    #[test]
+    fn load_string_accepts_repeat_markers() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[||:][G][C][D][ :||]
+"#;
+        let song = load_string(input).expect("import must not fail on repeat markers");
+        assert_eq!(song.title.as_str(), "Test");
+        assert_eq!(song.sections.len(), 1);
+        assert_eq!(song.sections[0].lines.len(), 1);
+
+        let key = song.key.as_ref().unwrap();
+        let rep = ChordRepresentation::Default;
+        let chord_parts: Vec<&crate::types::Chord> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(
+            chord_parts.len(),
+            3,
+            "expected exactly three chords G, C, D"
+        );
+        assert_eq!(chord_parts[0].format(key, &rep), "G");
+        assert_eq!(chord_parts[1].format(key, &rep), "C");
+        assert_eq!(chord_parts[2].format(key, &rep), "D");
+    }
+}
