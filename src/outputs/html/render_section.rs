@@ -13,6 +13,7 @@ pub fn render_section(
     representation: &ChordRepresentation,
     language: usize,
     bar_duration: u32,
+    beats_per_bar: u32,
 ) -> String {
     let mut content = String::new();
     let mut chord_only_line_buffer = Vec::new();
@@ -27,6 +28,7 @@ pub fn render_section(
                     key,
                     representation,
                     bar_duration,
+                    beats_per_bar,
                 ));
                 chord_only_line_buffer.clear();
             }
@@ -45,6 +47,7 @@ pub fn render_section(
             key,
             representation,
             bar_duration,
+            beats_per_bar,
         ));
     }
 
