@@ -57,28 +57,50 @@ pub fn load_html(html: &str) -> Result<Song, Error> {
     load_string(&content, title, artist, key)
 }
 
+/// True if this block starts with a section title line like [Intro] or [Verse 1],
+/// not [tab], [ch], etc.
+fn block_is_section(block: &str) -> bool {
+    let first = block.lines().next().map(str::trim).unwrap_or("");
+    first.starts_with('[')
+        && first.ends_with(']')
+        && !first.starts_with("[tab")
+        && !first.starts_with("[/tab")
+        && !first.starts_with("[ch")
+        && !first.starts_with("[/ch")
+}
+
+fn parse_section_block(section: &str) -> Result<Section, Error> {
+    let index = section
+        .find('\n')
+        .ok_or_else(|| Error::Parse("section block has no newline".into()))?;
+    let section_title = section[1..index - 1].to_string();
+    let lines = TabIterator::new(&section[index + 1..])
+        .map(|tab| {
+            let parts = PartIterator::new(tab).collect::<Result<Vec<Part>, Error>>()?;
+            Ok(Line::new(parts))
+        })
+        .collect::<Result<Vec<Line>, Error>>()?;
+    Ok(Section::new(section_title, lines))
+}
+
 pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Result<Song, Error> {
     let mut section_iter = SectionIterator::new(content);
 
     let mut tempo = None;
     let mut time = None;
-    if let Some(header) = section_iter.next() {
-        (tempo, time) = parse_header::parse_header(header);
+    let mut sections = Vec::new();
+
+    if let Some(first) = section_iter.next() {
+        (tempo, time) = parse_header::parse_header(first);
+        if block_is_section(first) {
+            sections.push(parse_section_block(first)?);
+        }
     }
 
-    let sections = section_iter
-        .map(|section| {
-            let index = section.find('\n').unwrap();
-            let title = section[1..index - 1].to_string();
-            let lines = TabIterator::new(&section[index + 1..])
-                .map(|tab| {
-                    let parts = PartIterator::new(tab).collect::<Result<Vec<Part>, Error>>()?;
-                    Ok(Line::new(parts))
-                })
-                .collect::<Result<Vec<Line>, Error>>()?;
-            Ok(Section::new(title, lines))
-        })
+    let rest: Vec<Section> = section_iter
+        .map(parse_section_block)
         .collect::<Result<Vec<Section>, Error>>()?;
+    sections.extend(rest);
 
     Ok(Song {
         title: title.into(),
@@ -140,5 +162,21 @@ mod tests {
         assert_eq!(song.sections.len(), 1);
         assert_eq!(song.sections[0].title.as_str(), "Verse 1");
         assert_eq!(song.sections[0].lines.len(), 1);
+    }
+
+    /// First block can be a real section (e.g. [Intro]); it must not be dropped.
+    /// See https://github.com/xilefmusics/chordlib/issues/15
+    #[test]
+    fn first_section_not_lost() {
+        let content = r#"[Intro]
+[ch]C[/ch] [ch]G[/ch]
+
+[Verse 1]
+[ch]Am[/ch] lyrics
+"#;
+        let song = load_string(content, "Song", "Artist", "C").expect("parse");
+        assert_eq!(song.sections.len(), 2, "Intro and Verse 1");
+        assert_eq!(song.sections[0].title.as_str(), "Intro");
+        assert_eq!(song.sections[1].title.as_str(), "Verse 1");
     }
 }
