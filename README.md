@@ -37,13 +37,13 @@ fn main() -> Result<(), chordlib::Error> {
 
 ## CLI quick start
 
-Render a ChordPro file to HTML:
+Render a ChordPro/ChordPro-like file to HTML from this repository:
 
 ```bash
-chordlib path/to/song.cp \
-  --render \
-  --output song.html
+cargo run --features=bin -- path/to/song.wp -o path/to/song.html
 ```
+
+Rendered HTML will be written to the path given after `-o`.
 
 The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.cp`/`.wp`), HTML, and JSON.
 

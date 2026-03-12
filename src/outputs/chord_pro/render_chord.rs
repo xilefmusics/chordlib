@@ -15,8 +15,14 @@ impl FormatChordPro for &Chord {
         );
 
         if worship_pro_features {
-            if let Some(duration) = self.get_duration() {
-                return format!("{formatted}:{duration}");
+            if let Some(milliclicks) = self.get_duration() {
+                let clicks = milliclicks as f64 / 1000.0;
+                let duration_str = if (clicks - clicks.round()).abs() < f64::EPSILON {
+                    format!("{:.0}", clicks)
+                } else {
+                    format!("{}", clicks)
+                };
+                return format!("{formatted}:{duration_str}");
             }
         }
 

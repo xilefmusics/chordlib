@@ -45,7 +45,7 @@ impl FormatChordPro for &Section {
             representation,
             language,
             worship_pro_features,
-            96,
+            4000, // default 4/4 bar in milliclicks
         )
     }
 }

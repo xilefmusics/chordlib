@@ -200,16 +200,15 @@ impl Chord {
         }
     }
 
+    /// Parse duration after ':' as clicks (decimal allowed); returns milliclicks (clicks * 1000).
     fn parse_duration<'a>(s: &'a str) -> Result<(Option<u32>, &'a str), Error> {
         if let Some((before, after)) = s.split_once(':') {
-            return Ok((
-                Some(
-                    after
-                        .parse()
-                        .map_err(|_| Error::Parse("failed to parse the duration".into()))?,
-                ),
-                before,
-            ));
+            let clicks: f64 = after
+                .trim()
+                .parse()
+                .map_err(|_| Error::Parse("failed to parse the duration".into()))?;
+            let milliclicks = (clicks * 1000.0).round().max(0.0) as u32;
+            return Ok((Some(milliclicks), before));
         }
         Ok((None, s))
     }
@@ -279,5 +278,23 @@ mod test {
         for (input, output) in inputs.iter().zip(outputs.iter()) {
             assert_eq!(&Chord::from_str(input), output);
         }
+    }
+
+    /// Duration is stored as milliclicks; format uses clicks (decimal allowed).
+    /// See https://github.com/xilefmusics/chordlib/issues/9
+    #[test]
+    fn chord_duration_milliclicks() {
+        let c4 = Chord::from_str("C:4").unwrap();
+        assert_eq!(c4.get_duration(), Some(4000), "4 clicks = 4000 milliclicks");
+
+        let am_1_5 = Chord::from_str("Am:1.5").unwrap();
+        assert_eq!(
+            am_1_5.get_duration(),
+            Some(1500),
+            "1.5 clicks = 1500 milliclicks"
+        );
+
+        let g_2_25 = Chord::from_str("G:2.25").unwrap();
+        assert_eq!(g_2_25.get_duration(), Some(2250));
     }
 }

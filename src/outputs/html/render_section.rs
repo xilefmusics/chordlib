@@ -1,5 +1,5 @@
 use super::{render_bars, render_line};
-use crate::types::{ChordRepresentation, Line, Section, SimpleChord};
+use crate::types::{ChordRepresentation, Line, Part, Section, SimpleChord};
 
 fn is_chord_only_line(line: &Line) -> bool {
     line.parts
@@ -48,10 +48,97 @@ pub fn render_section(
         ));
     }
 
+    // Add a separate repeat line at the end of the section if needed.
+    if section.repeat_count > 1 {
+        let repeat_text = if section.repeat_count == 2 {
+            "(repeat)".to_string()
+        } else {
+            format!("(repeat {}x)", section.repeat_count)
+        };
+
+        // Ensure the languages vector has an entry for the requested language index.
+        let mut languages = vec![String::new(); language.saturating_add(1)];
+        languages[language] = repeat_text;
+
+        let repeat_line = Line {
+            parts: vec![Part {
+                chord: None,
+                languages,
+                comment: true,
+            }],
+        };
+
+        content.push_str(&render_line::render_line(
+            &repeat_line,
+            key,
+            representation,
+            language,
+        ));
+    }
+
     let title = section.title.to_uppercase();
 
     format!(
         "<p><span class=\"keyword\">{}</span><br>{}</p>",
         title, content
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::{ChordRepresentation, Line, Part, Section, SimpleChord, Song};
+    use crate::outputs::FormatHTML;
+
+    fn make_song_with_section(title: &str, repeat_count: u32) -> Song {
+        let section = Section {
+            title: title.to_string(),
+            lines: vec![Line {
+                parts: vec![Part {
+                    chord: None,
+                    languages: vec!["Line".to_string()],
+                    comment: false,
+                }],
+            }],
+            repeat_count,
+        };
+
+        Song {
+            title: "Test".to_string(),
+            subtitle: None,
+            copyright: None,
+            key: Some(SimpleChord::default()),
+            artist: None,
+            language: None,
+            tempo: None,
+            time: None,
+            sections: vec![section],
+        }
+    }
+
+    #[test]
+    fn html_does_not_show_repeat_marker_for_default() {
+        let song = make_song_with_section("Chorus", 1);
+        let html = (&song).format_html(
+            None,
+            Some(&ChordRepresentation::Default),
+            None,
+            None,
+        );
+
+        assert!(html.contains("<span class=\"keyword\">CHORUS</span>"));
+        assert!(!html.contains("(repeat"));
+    }
+
+    #[test]
+    fn html_shows_repeat_marker_for_section_with_repeat_count() {
+        let song = make_song_with_section("Chorus", 2);
+        let html = (&song).format_html(
+            None,
+            Some(&ChordRepresentation::Default),
+            None,
+            None,
+        );
+
+        assert!(html.contains("<span class=\"comment\">(repeat)</span>"));
+    }
 }
