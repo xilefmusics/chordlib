@@ -35,6 +35,48 @@ fn parse_repeat_directive(line: &str) -> Result<Option<u32>, Error> {
     }
 }
 
+fn build_section_from_lines<'a, F>(
+    keyword: &str,
+    lines: &[&'a str],
+    make_iter: F,
+) -> Result<Section, Error>
+where
+    F: Fn(&'a str) -> PartIterator<'a>,
+{
+    let raw: Vec<&'a str> = lines.iter().filter(|l| !l.is_empty()).copied().collect();
+    let last_idx = raw.len().saturating_sub(1);
+    for (i, line) in raw.iter().enumerate() {
+        if parse_repeat_directive(line)?.is_some() && i != last_idx {
+            return Err(Error::Parse(
+                "{repeat} or {repeat: N} only allowed on last line of section".into(),
+            ));
+        }
+    }
+    let (content_lines, repeat_count) = if let Some(last) = raw.last() {
+        if let Some(n) = parse_repeat_directive(last)? {
+            (&raw[..raw.len() - 1], n)
+        } else {
+            (raw.as_slice(), 1u32)
+        }
+    } else {
+        (raw.as_slice(), 1u32)
+    };
+    let parsed = content_lines
+        .iter()
+        .map(|line| {
+            make_iter(line)
+                .collect::<Result<Vec<Part>, Error>>()
+                .map(Line::new)
+        })
+        .collect::<Result<Vec<Line>, Error>>()?;
+
+    Ok(Section::new_with_repeat(
+        keyword.into(),
+        parsed,
+        repeat_count,
+    ))
+}
+
 pub fn load(path: &str) -> Result<Song, Error> {
     load_string(&std::fs::read_to_string(path)?)
 }
@@ -61,37 +103,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
         &mut time,
     )
     .map(|(keyword, lines)| {
-        let raw: Vec<&str> = lines.iter().filter(|l| !l.is_empty()).copied().collect();
-        let last_idx = raw.len().saturating_sub(1);
-        for (i, line) in raw.iter().enumerate() {
-            if parse_repeat_directive(line)?.is_some() && i != last_idx {
-                return Err(Error::Parse(
-                    "{repeat} or {repeat: N} only allowed on last line of section".into(),
-                ));
-            }
-        }
-        let (content_lines, repeat_count) = if let Some(last) = raw.last() {
-            if let Some(n) = parse_repeat_directive(last)? {
-                (&raw[..raw.len() - 1], n)
-            } else {
-                (raw.as_slice(), 1u32)
-            }
-        } else {
-            (raw.as_slice(), 1u32)
-        };
-        let parsed = content_lines
-            .iter()
-            .map(|line| {
-                PartIterator::new(line, 96)
-                    .collect::<Result<Vec<Part>, Error>>()
-                    .map(Line::new)
-            })
-            .collect::<Result<Vec<Line>, Error>>()?;
-        Ok(Section::new_with_repeat(
-            keyword.into(),
-            parsed,
-            repeat_count,
-        ))
+        build_section_from_lines(keyword, &lines, |line| PartIterator::new(line, 96))
     })
     .collect::<Result<Vec<Section>, Error>>()?;
 
@@ -100,37 +112,9 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     } else {
         SpaceSectionIterator::new(input)
             .map(|(keyword, lines)| {
-                let raw: Vec<&str> = lines.iter().filter(|l| !l.is_empty()).copied().collect();
-                let last_idx = raw.len().saturating_sub(1);
-                for (i, line) in raw.iter().enumerate() {
-                    if parse_repeat_directive(line)?.is_some() && i != last_idx {
-                        return Err(Error::Parse(
-                            "{repeat} or {repeat: N} only allowed on last line of section".into(),
-                        ));
-                    }
-                }
-                let (content_lines, repeat_count) = if let Some(last) = raw.last() {
-                    if let Some(n) = parse_repeat_directive(last)? {
-                        (&raw[..raw.len() - 1], n)
-                    } else {
-                        (raw.as_slice(), 1u32)
-                    }
-                } else {
-                    (raw.as_slice(), 1u32)
-                };
-                let parsed = content_lines
-                    .iter()
-                    .map(|line| {
-                        PartIterator::new(line, time.map(|(a, b)| 96 * a / b).unwrap_or(96))
-                            .collect::<Result<Vec<Part>, Error>>()
-                            .map(Line::new)
-                    })
-                    .collect::<Result<Vec<Line>, Error>>()?;
-                Ok(Section::new_with_repeat(
-                    keyword.into(),
-                    parsed,
-                    repeat_count,
-                ))
+                build_section_from_lines(keyword, &lines, |line| {
+                    PartIterator::new(line, time.map(|(a, b)| 96 * a / b).unwrap_or(96))
+                })
             })
             .collect::<Result<Vec<Section>, Error>>()?
     };

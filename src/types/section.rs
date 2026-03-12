@@ -2,12 +2,16 @@ use serde::{Deserialize, Serialize};
 
 use super::{Line, SimpleChord};
 
+fn default_repeat_count() -> u32 {
+    1
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Section {
     pub title: String,
     pub lines: Vec<Line>,
     /// How many times this section is repeated (from `{repeat}` or `{repeat: N}`). Default 1.
-    #[serde(default)]
+    #[serde(default = "default_repeat_count")]
     pub repeat_count: u32,
 }
 
