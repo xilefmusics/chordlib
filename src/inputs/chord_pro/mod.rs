@@ -104,7 +104,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
         &mut time,
     )
     .map(|(keyword, lines)| {
-        build_section_from_lines(keyword, &lines, |line| PartIterator::new(line, 96))
+        build_section_from_lines(keyword, &lines, |line| PartIterator::new(line, 4000))
     })
     .collect::<Result<Vec<Section>, Error>>()?;
 
@@ -113,8 +113,11 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     } else {
         SpaceSectionIterator::new(input)
             .map(|(keyword, lines)| {
+                let bar_duration = time
+                    .map(|(num, denom)| 1000 * num * 4 / denom)
+                    .unwrap_or(4000);
                 build_section_from_lines(keyword, &lines, |line| {
-                    PartIterator::new(line, time.map(|(a, b)| 96 * a / b).unwrap_or(96))
+                    PartIterator::new(line, bar_duration)
                 })
             })
             .collect::<Result<Vec<Section>, Error>>()?
@@ -140,38 +143,6 @@ mod tests {
     use crate::types::ChordRepresentation;
 
     use super::*;
-
-    /// ChordPro with CCLI-style repeat markers [||:] and [:||] must import without error;
-    /// markers are stripped and only real chords (e.g. [G][C][D]) are parsed.
-    /// See: https://github.com/xilefmusics/chordlib/issues/6
-    #[test]
-    fn load_string_accepts_repeat_markers() {
-        let input = r#"{title: Test}
-{key: C}
-{section: Verse}
-[||:][G][C][D][ :||]
-"#;
-        let song = load_string(input).expect("import must not fail on repeat markers");
-        assert_eq!(song.title.as_str(), "Test");
-        assert_eq!(song.sections.len(), 1);
-        assert_eq!(song.sections[0].lines.len(), 1);
-
-        let key = song.key.as_ref().unwrap();
-        let rep = ChordRepresentation::Default;
-        let chord_parts: Vec<&crate::types::Chord> = song.sections[0].lines[0]
-            .parts
-            .iter()
-            .filter_map(|p| p.chord.as_ref())
-            .collect();
-        assert_eq!(
-            chord_parts.len(),
-            3,
-            "expected exactly three chords G, C, D"
-        );
-        assert_eq!(chord_parts[0].format(key, &rep), "G");
-        assert_eq!(chord_parts[1].format(key, &rep), "C");
-        assert_eq!(chord_parts[2].format(key, &rep), "D");
-    }
 
     /// {repeat} and {repeat: N} on last line of section set section repeat_count.
     /// See https://github.com/xilefmusics/chordlib/issues/10
@@ -219,5 +190,78 @@ mod tests {
 "#;
         let song = load_string(input).expect("parse");
         assert_eq!(song.sections[0].repeat_count, 1);
+    }
+
+    /// ChordPro with CCLI-style repeat markers [||:] and [:||] must import without error;
+    /// markers are stripped and only real chords (e.g. [G][C][D]) are parsed.
+    /// See: https://github.com/xilefmusics/chordlib/issues/6
+    #[test]
+    fn load_string_accepts_repeat_markers() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[||:][G][C][D][ :||]
+"#;
+        let song = load_string(input).expect("import must not fail on repeat markers");
+        assert_eq!(song.title.as_str(), "Test");
+        assert_eq!(song.sections.len(), 1);
+        assert_eq!(song.sections[0].lines.len(), 1);
+
+        let key = song.key.as_ref().unwrap();
+        let rep = ChordRepresentation::Default;
+        let chord_parts: Vec<&crate::types::Chord> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(
+            chord_parts.len(),
+            3,
+            "expected exactly three chords G, C, D"
+        );
+        assert_eq!(chord_parts[0].format(key, &rep), "G");
+        assert_eq!(chord_parts[1].format(key, &rep), "C");
+        assert_eq!(chord_parts[2].format(key, &rep), "D");
+    }
+
+    /// Worship Pro duration: parse clicks (decimal) as milliclicks; round-trip.
+    /// See https://github.com/xilefmusics/chordlib/issues/9
+    #[test]
+    fn worship_pro_duration_roundtrip() {
+        let input = r#"{title: Durations}
+{key: C}
+{section: Verse}
+[C:4][Am:1.5][G:2][F:1]
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.sections.len(), 1);
+        let parts: Vec<_> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(parts.len(), 4);
+        assert_eq!(parts[0].get_duration(), Some(4000));
+        assert_eq!(parts[1].get_duration(), Some(1500));
+        assert_eq!(parts[2].get_duration(), Some(2000));
+        assert_eq!(parts[3].get_duration(), Some(1000));
+
+        use crate::outputs::FormatChordPro;
+        let out = (&song).format_chord_pro(
+            None,
+            Some(&ChordRepresentation::Default),
+            None,
+            true, // worship_pro
+        );
+        assert!(out.contains("[C:4]"), "integer clicks");
+        assert!(out.contains("[Am:1.5]"), "decimal clicks");
+        let again = load_string(&out).expect("round-trip parse");
+        let again_parts: Vec<_> = again.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(again_parts[0].get_duration(), Some(4000));
+        assert_eq!(again_parts[1].get_duration(), Some(1500));
     }
 }
