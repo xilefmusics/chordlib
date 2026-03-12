@@ -67,7 +67,9 @@ impl SimpleChord {
 
     pub fn format(&self, key: &SimpleChord, representation: &ChordRepresentation) -> &'static str {
         match representation {
-            ChordRepresentation::Nashville => CHORD_STRINGS_NASHVILLE[self.level as usize],
+            ChordRepresentation::Nashville => {
+                CHORD_STRINGS_NASHVILLE[((self.level + key.level) % 12) as usize]
+            }
             ChordRepresentation::Default => match key.level {
                 0 | 2 | 3 | 5 | 7 | 9 | 10 => {
                     CHORD_STRINGS_SHARP[((self.level + key.level) % 12) as usize]

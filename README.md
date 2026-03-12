@@ -47,6 +47,8 @@ Rendered HTML will be written to the path given after `-o`.
 
 The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.cp`/`.wp`), HTML, and JSON.
 
+ChordPro I/O supports **Nashville number notation** for chords: you can load files that use numbers (e.g. `[1][4][5]`, `[1m][4][5]`) when the key is set with a letter name (e.g. `{key: C}`). The `{key: …}` directive must be a letter name, not a number. Use the `--nashville` flag when writing ChordPro to output chords in Nashville form; the key is always written as a letter (e.g. `{key: C}`).
+
 To parse an Ultimate Guitar tab from HTML, first obtain the HTML (for example by saving the page in a browser), read it into a string, and then call `chordlib::inputs::ultimate_guitar::load_html(&html)` from your own code. The library no longer performs live HTTP requests to Ultimate Guitar.
 
 ## Feature flags

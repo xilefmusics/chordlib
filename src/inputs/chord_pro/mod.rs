@@ -6,7 +6,7 @@ use iter_section::SectionIterator;
 use iter_space_section::SpaceSectionIterator;
 
 use crate::error::Error;
-use crate::types::{Line, Part, Section, Song};
+use crate::types::{Line, Part, Section, SimpleChord, Song};
 
 /// If `line` is `{repeat}` or `{repeat: N}` (N ≥ 1), returns Some(repeat_count).
 /// `{repeat}` → 2. Otherwise returns None (not a repeat directive).
@@ -123,11 +123,26 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
             .collect::<Result<Vec<Section>, Error>>()?
     };
 
+    let key_str = key.ok_or(Error::Parse("no key given".into()))?;
+    let key_str = key_str.trim();
+    if key_str
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_digit())
+        .unwrap_or(true)
+    {
+        return Err(Error::Parse(
+            "key must be a letter name (e.g. C, G), not a Nashville number".into(),
+        ));
+    }
+    let key_simple: SimpleChord = key_str.try_into()?;
+
+    let title = title.ok_or(Error::Parse("no title given".into()))?;
     Ok(Song {
-        title: title.ok_or(Error::Parse("no title given".into()))?,
+        title,
         subtitle,
         copyright,
-        key: Some((key.ok_or(Error::Parse("no key given".into()))?.as_str()).try_into()?),
+        key: Some(key_simple),
         artist,
         language,
         tempo,
@@ -222,6 +237,49 @@ mod tests {
         assert_eq!(chord_parts[0].format(key, &rep), "G");
         assert_eq!(chord_parts[1].format(key, &rep), "C");
         assert_eq!(chord_parts[2].format(key, &rep), "D");
+    }
+
+    /// Nashville ChordPro: chords as numbers, key must be letter. Round-trip.
+    /// See https://github.com/xilefmusics/chordlib/issues/12
+    #[test]
+    fn nashville_chord_pro_roundtrip() {
+        let input = r#"{title: Nashville Test}
+{key: C}
+{section: Verse}
+[1][4][5][1]
+[1m][4][5]
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.sections.len(), 1);
+        let key = song.key.as_ref().unwrap();
+        let rep = ChordRepresentation::Nashville;
+        let line0: Vec<String> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .map(|c| c.format(key, &rep).to_string())
+            .collect();
+        assert_eq!(line0, ["1", "4", "5", "1"], "Nashville chords in key C");
+        use crate::outputs::FormatChordPro;
+        let out = (&song).format_chord_pro(None, Some(&rep), None, false);
+        assert!(
+            out.contains("{key:C}") || out.contains("{key: C}"),
+            "key stays letter in output"
+        );
+        assert!(out.contains("[1]") && out.contains("[4]") && out.contains("[5]"));
+        let again = load_string(&out).expect("round-trip");
+        assert_eq!(again.key, song.key);
+    }
+
+    #[test]
+    fn key_must_be_letter_rejects_nashville_number() {
+        let input = r#"{title: Test}
+{key: 1}
+{section: Verse}
+[ C]
+"#;
+        let r = load_string(input);
+        assert!(r.is_err(), "{{key: 1}} must be rejected");
     }
 
     /// Worship Pro duration: parse clicks (decimal) as milliclicks; round-trip.
