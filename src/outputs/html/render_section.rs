@@ -86,8 +86,8 @@ pub fn render_section(
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{ChordRepresentation, Line, Part, Section, SimpleChord, Song};
     use crate::outputs::FormatHTML;
+    use crate::types::{ChordRepresentation, Line, Part, Section, SimpleChord, Song};
 
     fn make_song_with_section(title: &str, repeat_count: u32) -> Song {
         let section = Section {
@@ -118,12 +118,7 @@ mod tests {
     #[test]
     fn html_does_not_show_repeat_marker_for_default() {
         let song = make_song_with_section("Chorus", 1);
-        let html = (&song).format_html(
-            None,
-            Some(&ChordRepresentation::Default),
-            None,
-            None,
-        );
+        let html = (&song).format_html(None, Some(&ChordRepresentation::Default), None, None);
 
         assert!(html.contains("<span class=\"keyword\">CHORUS</span>"));
         assert!(!html.contains("(repeat"));
@@ -132,12 +127,7 @@ mod tests {
     #[test]
     fn html_shows_repeat_marker_for_section_with_repeat_count() {
         let song = make_song_with_section("Chorus", 2);
-        let html = (&song).format_html(
-            None,
-            Some(&ChordRepresentation::Default),
-            None,
-            None,
-        );
+        let html = (&song).format_html(None, Some(&ChordRepresentation::Default), None, None);
 
         assert!(html.contains("<span class=\"comment\">(repeat)</span>"));
     }

@@ -32,8 +32,10 @@ impl Song {
 
     /// Bar duration in milliclicks (1000 per click; one bar in 4/4 = 4000).
     pub fn bar_duration(&self) -> u32 {
-        if let Some((numerator, _denominator)) = self.time {
-            1000 * numerator
+        if let Some((numerator, denominator)) = self.time {
+            // Treat time signature as a number of quarter-note beats per bar:
+            // beats = numerator * 4 / denominator, then scale to milliclicks.
+            1000 * numerator * 4 / denominator
         } else {
             4000 // 4/4
         }
@@ -79,6 +81,26 @@ mod tests {
             ..Song::default()
         };
         assert_eq!(song_34.bar_duration(), 3000, "3/4 bar = 3000 milliclicks");
+
+        let song_68 = Song {
+            time: Some((6, 8)),
+            ..Song::default()
+        };
+        assert_eq!(
+            song_68.bar_duration(),
+            3000,
+            "6/8 bar should equal 3/4 bar duration"
+        );
+
+        let song_22 = Song {
+            time: Some((2, 2)),
+            ..Song::default()
+        };
+        assert_eq!(
+            song_22.bar_duration(),
+            4000,
+            "2/2 bar should equal 4/4 bar duration"
+        );
 
         let song_default = Song::default();
         assert_eq!(song_default.bar_duration(), 4000);
