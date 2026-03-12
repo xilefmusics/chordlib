@@ -211,7 +211,7 @@ mod tests {
     /// markers are stripped and only real chords (e.g. [G][C][D]) are parsed.
     /// See: https://github.com/xilefmusics/chordlib/issues/6
     #[test]
-     fn load_string_accepts_repeat_markers() {
+    fn load_string_accepts_repeat_markers() {
         let input = r#"{title: Test}
 {key: C}
 {section: Verse}
@@ -236,90 +236,90 @@ mod tests {
         );
         assert_eq!(chord_parts[0].format(key, &rep), "G");
         assert_eq!(chord_parts[1].format(key, &rep), "C");
-         assert_eq!(chord_parts[2].format(key, &rep), "D");
-     }
+        assert_eq!(chord_parts[2].format(key, &rep), "D");
+    }
 
-     /// Nashville ChordPro: chords as numbers, key must be letter. Round-trip.
-     /// See https://github.com/xilefmusics/chordlib/issues/12
-     #[test]
-     fn nashville_chord_pro_roundtrip() {
-         let input = r#"{title: Nashville Test}
- {key: C}
- {section: Verse}
- [1][4][5][1]
- [1m][4][5]
- "#;
-         let song = load_string(input).expect("parse");
-         assert_eq!(song.sections.len(), 1);
-         let key = song.key.as_ref().unwrap();
-         let rep = ChordRepresentation::Nashville;
-         let line0: Vec<String> = song.sections[0].lines[0]
-             .parts
-             .iter()
-             .filter_map(|p| p.chord.as_ref())
-             .map(|c| c.format(key, &rep).to_string())
-             .collect();
-         assert_eq!(line0, ["1", "4", "5", "1"], "Nashville chords in key C");
-         use crate::outputs::FormatChordPro;
-         let out = (&song).format_chord_pro(None, Some(&rep), None, false);
-         assert!(
-             out.contains("{key:C}") || out.contains("{key: C}"),
-             "key stays letter in output"
-         );
-         assert!(out.contains("[1]") && out.contains("[4]") && out.contains("[5]"));
-         let again = load_string(&out).expect("round-trip");
-         assert_eq!(again.key, song.key);
-     }
+    /// Nashville ChordPro: chords as numbers, key must be letter. Round-trip.
+    /// See https://github.com/xilefmusics/chordlib/issues/12
+    #[test]
+    fn nashville_chord_pro_roundtrip() {
+        let input = r#"{title: Nashville Test}
+{key: C}
+{section: Verse}
+[1][4][5][1]
+[1m][4][5]
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.sections.len(), 1);
+        let key = song.key.as_ref().unwrap();
+        let rep = ChordRepresentation::Nashville;
+        let line0: Vec<String> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .map(|c| c.format(key, &rep).to_string())
+            .collect();
+        assert_eq!(line0, ["1", "4", "5", "1"], "Nashville chords in key C");
+        use crate::outputs::FormatChordPro;
+        let out = (&song).format_chord_pro(None, Some(&rep), None, false);
+        assert!(
+            out.contains("{key:C}") || out.contains("{key: C}"),
+            "key stays letter in output"
+        );
+        assert!(out.contains("[1]") && out.contains("[4]") && out.contains("[5]"));
+        let again = load_string(&out).expect("round-trip");
+        assert_eq!(again.key, song.key);
+    }
 
-     #[test]
-     fn key_must_be_letter_rejects_nashville_number() {
-         let input = r#"{title: Test}
- {key: 1}
- {section: Verse}
- [ C]
- "#;
-         let r = load_string(input);
-         assert!(r.is_err(), "{{key: 1}} must be rejected");
-     }
+    #[test]
+    fn key_must_be_letter_rejects_nashville_number() {
+        let input = r#"{title: Test}
+{key: 1}
+{section: Verse}
+[ C]
+"#;
+        let r = load_string(input);
+        assert!(r.is_err(), "{{key: 1}} must be rejected");
+    }
 
-     /// Worship Pro duration: parse clicks (decimal) as milliclicks; round-trip.
-     /// See https://github.com/xilefmusics/chordlib/issues/9
-     #[test]
-     fn worship_pro_duration_roundtrip() {
-         let input = r#"{title: Durations}
- {key: C}
- {section: Verse}
- [C:4][Am:1.5][G:2][F:1]
- "#;
-         let song = load_string(input).expect("parse");
-         assert_eq!(song.sections.len(), 1);
-         let parts: Vec<_> = song.sections[0].lines[0]
-             .parts
-             .iter()
-             .filter_map(|p| p.chord.as_ref())
-             .collect();
-         assert_eq!(parts.len(), 4);
-         assert_eq!(parts[0].get_duration(), Some(4000));
-         assert_eq!(parts[1].get_duration(), Some(1500));
-         assert_eq!(parts[2].get_duration(), Some(2000));
-         assert_eq!(parts[3].get_duration(), Some(1000));
+    /// Worship Pro duration: parse clicks (decimal) as milliclicks; round-trip.
+    /// See https://github.com/xilefmusics/chordlib/issues/9
+    #[test]
+    fn worship_pro_duration_roundtrip() {
+        let input = r#"{title: Durations}
+{key: C}
+{section: Verse}
+[C:4][Am:1.5][G:2][F:1]
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.sections.len(), 1);
+        let parts: Vec<_> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(parts.len(), 4);
+        assert_eq!(parts[0].get_duration(), Some(4000));
+        assert_eq!(parts[1].get_duration(), Some(1500));
+        assert_eq!(parts[2].get_duration(), Some(2000));
+        assert_eq!(parts[3].get_duration(), Some(1000));
 
-         use crate::outputs::FormatChordPro;
-         let out = (&song).format_chord_pro(
-             None,
-             Some(&ChordRepresentation::Default),
-             None,
-             true, // worship_pro
-         );
-         assert!(out.contains("[C:4]"), "integer clicks");
-         assert!(out.contains("[Am:1.5]"), "decimal clicks");
-         let again = load_string(&out).expect("round-trip parse");
-         let again_parts: Vec<_> = again.sections[0].lines[0]
-             .parts
-             .iter()
-             .filter_map(|p| p.chord.as_ref())
-             .collect();
-         assert_eq!(again_parts[0].get_duration(), Some(4000));
-         assert_eq!(again_parts[1].get_duration(), Some(1500));
-     }
+        use crate::outputs::FormatChordPro;
+        let out = (&song).format_chord_pro(
+            None,
+            Some(&ChordRepresentation::Default),
+            None,
+            true, // worship_pro
+        );
+        assert!(out.contains("[C:4]"), "integer clicks");
+        assert!(out.contains("[Am:1.5]"), "decimal clicks");
+        let again = load_string(&out).expect("round-trip parse");
+        let again_parts: Vec<_> = again.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(again_parts[0].get_duration(), Some(4000));
+        assert_eq!(again_parts[1].get_duration(), Some(1500));
+    }
 }
