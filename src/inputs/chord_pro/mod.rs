@@ -223,6 +223,7 @@ mod tests {
         assert_eq!(chord_parts[1].format(key, &rep), "C");
         assert_eq!(chord_parts[2].format(key, &rep), "D");
     }
+
     /// Worship Pro duration: parse clicks (decimal) as milliclicks; round-trip.
     /// See https://github.com/xilefmusics/chordlib/issues/9
     #[test]
