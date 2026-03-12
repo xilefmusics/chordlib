@@ -9,7 +9,7 @@ use crate::error::Error;
 use crate::types::{Line, Part, Section, Song};
 
 /// If `line` is `{repeat}` or `{repeat: N}` (N ≥ 1), returns Some(repeat_count).
-/// `{repeat}` → 4. Otherwise returns None (not a repeat directive).
+/// `{repeat}` → 2. Otherwise returns None (not a repeat directive).
 /// Returns Err if it looks like a repeat directive but is invalid (e.g. `{repeat: 0}`).
 fn parse_repeat_directive(line: &str) -> Result<Option<u32>, Error> {
     let line = line.trim();
@@ -18,7 +18,8 @@ fn parse_repeat_directive(line: &str) -> Result<Option<u32>, Error> {
     }
     let inner = line[1..line.len() - 1].trim();
     if inner == "repeat" {
-        return Ok(Some(4));
+        // `{repeat}` means: play this section twice in total.
+        return Ok(Some(2));
     }
     if let Some(rest) = inner.strip_prefix("repeat:") {
         let n: u32 = rest
@@ -184,7 +185,7 @@ mod tests {
 "#;
         let song = load_string(input).expect("parse");
         assert_eq!(song.sections.len(), 1);
-        assert_eq!(song.sections[0].repeat_count, 4, "{{repeat}} defaults to 4");
+        assert_eq!(song.sections[0].repeat_count, 2, "{{repeat}} defaults to 2");
         assert_eq!(song.sections[0].lines.len(), 1);
 
         let input_n = r#"{title: Test}
