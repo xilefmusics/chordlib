@@ -31,6 +31,7 @@ impl FormatHTML for &Song {
             (None, None) => String::new(),
         };
 
+        let beats_per_bar = self.time.map(|(n, _)| n).unwrap_or(4);
         let page_template = self
             .sections
             .iter()
@@ -43,6 +44,7 @@ impl FormatHTML for &Song {
                         .unwrap_or(&&ChordRepresentation::Default),
                     language,
                     self.bar_duration(),
+                    beats_per_bar,
                 )
             })
             .fold(
