@@ -8,51 +8,63 @@ fn format_bar_beat_slashes(bar: &[(String, u32)], bar_duration: u32, beats_per_b
     if beats_per_bar == 0 {
         return String::new();
     }
-    let mut symbols = Vec::with_capacity(beats_per_bar as usize);
-    let beat_duration = if beats_per_bar > 0 {
-        bar_duration / beats_per_bar
-    } else {
-        0
-    };
-    let mut prev_chord_idx: Option<usize> = None;
-    for beat in 0..beats_per_bar {
-        let pos = beat * bar_duration / beats_per_bar;
-        let mut seg_start = 0u32;
-        let mut chord_idx: Option<usize> = None;
-        let mut seg_end = 0u32;
 
-        for (idx, (_chord_str, dur)) in bar.iter().enumerate() {
-            seg_end = seg_start + *dur;
-            if pos < seg_end {
-                chord_idx = Some(idx);
-                break;
+    let beats_per_bar = beats_per_bar as usize;
+    let beat_duration = bar_duration / beats_per_bar as u32;
+
+    // Pre‑allocate assuming a few characters per beat plus spaces.
+    let mut out = String::with_capacity(beats_per_bar * 4);
+
+    let mut prev_chord_idx: Option<usize> = None;
+
+    // Walk the bar segments once while we iterate over beats.
+    let mut seg_idx = 0usize;
+    let mut seg_end = bar.first().map(|(_, dur)| *dur).unwrap_or(0);
+
+    for beat in 0..beats_per_bar {
+        let pos = beat as u32 * bar_duration / beats_per_bar as u32;
+
+        while seg_idx < bar.len() && pos >= seg_end {
+            seg_idx += 1;
+            if let Some((_, dur)) = bar.get(seg_idx) {
+                seg_end += *dur;
             }
-            seg_start = seg_end;
         }
 
-        let symbol = match (chord_idx, prev_chord_idx) {
+        let chord_idx = if seg_idx < bar.len() {
+            Some(seg_idx)
+        } else {
+            None
+        };
+
+        if beat > 0 {
+            out.push(' ');
+        }
+
+        match (chord_idx, prev_chord_idx) {
             // No chord covers this beat position.
-            (None, _) => "·".to_string(),
+            (None, _) => out.push('·'),
+
             // Same chord as on the previous beat → continuation:
             // "/" if at least a full beat of this chord remains, otherwise "·".
             (Some(idx), Some(prev)) if idx == prev => {
                 let remaining = seg_end.saturating_sub(pos);
-                if beat_duration > 0 && remaining >= beat_duration {
-                    "/".to_string()
+                if remaining >= beat_duration {
+                    out.push('/');
                 } else {
-                    "·".to_string()
+                    out.push('·');
                 }
             }
+
             // First sampled beat within this chord's span → show the chord name.
             (Some(idx), _) => {
                 prev_chord_idx = Some(idx);
-                bar[idx].0.clone()
+                out.push_str(&bar[idx].0);
             }
-        };
-
-        symbols.push(symbol);
+        }
     }
-    symbols.join(" ")
+
+    out
 }
 
 pub fn render_bars(

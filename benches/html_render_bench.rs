@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use test::{black_box, Bencher};
+use test::{Bencher, black_box};
 
 use chordlib::inputs::chord_pro;
 use chordlib::outputs::FormatHTML;
@@ -41,8 +41,7 @@ fn song_many_sections() -> Song {
 
 // 3. Long lines with dense chords to stress inline layout.
 fn song_long_lines_dense_chords() -> Song {
-    let mut input =
-        String::from("{title: Long Lines Dense Chords}\n{key: G}\n{section: Verse}\n");
+    let mut input = String::from("{title: Long Lines Dense Chords}\n{key: G}\n{section: Verse}\n");
     for _ in 0..20 {
         input.push_str(
             "[G]Word [D]word [Em]word [C]word [G]word [D]word [Em]word [C]word\n\
@@ -54,9 +53,8 @@ fn song_long_lines_dense_chords() -> Song {
 
 // 4. Chord-only progression with repeat to stress render_bars and repeat marker.
 fn song_chord_only_progression() -> Song {
-    let mut input = String::from(
-        "{title: Chord Only Progression}\n{key: C}\n{section: Progression}\n",
-    );
+    let mut input =
+        String::from("{title: Chord Only Progression}\n{key: C}\n{section: Progression}\n");
     for _ in 0..200 {
         input.push_str("[C][G][Am][F]\n");
     }
@@ -66,9 +64,8 @@ fn song_chord_only_progression() -> Song {
 
 // 5. Multilingual lyrics using &-lines to stress language handling.
 fn song_multilingual() -> Song {
-    let mut input = String::from(
-        "{title: Multilingual}\n{key: C}\n{language: de}\n{language2: en}\n",
-    );
+    let mut input =
+        String::from("{title: Multilingual}\n{key: C}\n{language: de}\n{language2: en}\n");
     for _ in 0..20 {
         input.push_str(
             "{section: Verse}\n\
@@ -206,4 +203,3 @@ fn bench_html_render_nashville(b: &mut Bencher) {
 fn bench_html_render_full_page_like(b: &mut Bencher) {
     bench_render_song(b, song_full_page_like());
 }
-
