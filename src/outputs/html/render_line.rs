@@ -1,9 +1,11 @@
 use super::render_part;
 use crate::types::{ChordRepresentation, Line, Part, SimpleChord};
 
+type NextPartInfo<'a> = (&'a Part, Option<usize>, Option<usize>, bool, bool);
+
 struct LineRenderer<'a> {
     parts: std::slice::Iter<'a, Part>,
-    next_part: Option<(&'a Part, Option<usize>, Option<usize>, bool, bool)>,
+    next_part: Option<NextPartInfo<'a>>,
     inside_word: bool,
     key: &'a SimpleChord,
     representation: &'a ChordRepresentation,
@@ -19,7 +21,7 @@ impl<'a> Iterator for LineRenderer<'a> {
 
         let next_starts_with = self
             .next_part
-            .map_or(false, |(_, _, _, starts_with, _)| starts_with);
+            .is_some_and(|(_, _, _, starts_with, _)| starts_with);
 
         let inside_word = !ends_with && !next_starts_with && self.next_part.is_some();
 
@@ -111,14 +113,22 @@ impl<'a> LineRenderer<'a> {
             return "".to_string();
         }
         let diff = diff as usize;
-        let mut result = String::with_capacity(256);
+        let mut result = String::with_capacity(64 + diff * 6);
         result.push_str("<span class=\"text\">");
         if inside_word {
-            result.push_str(&" ".repeat((diff - 1) * 2));
-            result.push_str("-");
-            result.push_str(&" ".repeat((diff - 1) * 2));
+            let spaces = (diff - 1) * 2;
+            for _ in 0..spaces {
+                result.push(' ');
+            }
+            result.push('-');
+            for _ in 0..spaces {
+                result.push(' ');
+            }
         } else {
-            result.push_str(&" ".repeat(diff * 5));
+            let spaces = diff * 5;
+            for _ in 0..spaces {
+                result.push(' ');
+            }
         }
         result.push_str("</span>");
         result

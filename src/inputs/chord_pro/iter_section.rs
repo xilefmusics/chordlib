@@ -16,6 +16,7 @@ pub struct SectionIterator<'a> {
 }
 
 impl<'a> SectionIterator<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         content: &'a str,
         title: &'a mut Option<String>,
@@ -79,17 +80,9 @@ impl<'a> SectionIterator<'a> {
         if key == prefix {
             return Some(0);
         }
-        if let Some(rest) = key.strip_prefix(prefix) {
-            if rest.is_empty() {
-                return None;
-            }
-            if let Ok(n) = rest.parse::<usize>() {
-                if n >= 1 {
-                    return Some(n - 1);
-                }
-            }
-        }
-        None
+        key.strip_prefix(prefix)
+            .and_then(|rest| rest.parse::<usize>().ok())
+            .and_then(|n| (n >= 1).then(|| n.saturating_sub(1)))
     }
 }
 

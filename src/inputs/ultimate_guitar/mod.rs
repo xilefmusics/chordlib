@@ -15,10 +15,7 @@ use iter_tab::TabIterator;
 fn get_nested_field<'a>(json: &'a serde_json::Value, keys: &[&str]) -> Option<&'a str> {
     let mut current_value = json;
     for key in keys {
-        current_value = match current_value.get(key) {
-            Some(value) => value,
-            None => return None,
-        };
+        current_value = current_value.get(key)?;
     }
     current_value.as_str()
 }

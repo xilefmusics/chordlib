@@ -32,7 +32,7 @@ impl Song {
     pub fn normalize(&mut self) -> &mut Self {
         for section in &mut self.sections {
             if let Some(key) = &self.key {
-                section.normalize(&key);
+                section.normalize(key);
             }
         }
         self
@@ -56,12 +56,11 @@ impl Song {
     /// back to the primary `self.title`.
     pub fn title_for_language(&self, language: Option<usize>) -> &str {
         let idx = language.unwrap_or(0);
-        if let Some(titles) = &self.titles {
-            if let Some(candidate) = titles.get(idx) {
-                if !candidate.is_empty() {
-                    return candidate;
-                }
-            }
+        if let Some(titles) = &self.titles
+            && let Some(candidate) = titles.get(idx)
+            && !candidate.is_empty()
+        {
+            return candidate;
         }
         &self.title
     }
@@ -82,6 +81,17 @@ impl Song {
             .map(Section::remove_manual_spacing)
             .collect();
         self
+    }
+
+    /// Returns a slice of artists, preferring the structured `artists` field when present.
+    pub fn artist_slice(&self) -> Option<&[String]> {
+        if let Some(artists) = &self.artists {
+            if artists.is_empty() {
+                return None;
+            }
+            return Some(artists.as_slice());
+        }
+        self.artist.as_ref().map(std::slice::from_ref)
     }
 
     pub fn language_list(&self) -> Option<Vec<String>> {
@@ -109,9 +119,7 @@ impl Song {
             }
             return Some(artists.clone());
         }
-        self.artist
-            .as_ref()
-            .map(|a| vec![a.clone()])
+        self.artist.as_ref().map(|a| vec![a.clone()])
     }
 }
 

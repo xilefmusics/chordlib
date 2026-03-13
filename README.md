@@ -51,6 +51,17 @@ ChordPro I/O supports **Nashville number notation** for chords: you can load fil
 
 To parse an Ultimate Guitar tab from HTML, first obtain the HTML (for example by saving the page in a browser), read it into a string, and then call `chordlib::inputs::ultimate_guitar::load_html(&html)` from your own code. The library no longer performs live HTTP requests to Ultimate Guitar.
 
+## Benchmarks
+
+HTML rendering performance benchmarks are available and require the Rust nightly toolchain because they use the unstable `#[bench]` harness:
+
+```bash
+rustup install nightly
+cargo +nightly bench --bench html_render_bench
+```
+
+These benchmarks render real-world Worship Pro / ChordPro-style inputs (for example `song/jesus_lebt3.wp`, which includes a mix of normal and chord-only lines) through the same `FormatHTML` implementation used by the library and CLI. The crate itself remains fully compatible with stable Rust; only the benchmarks require nightly.
+
 ## Feature flags
 
 - `bin`: build the `chordlib` CLI.

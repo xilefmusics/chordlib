@@ -6,6 +6,6 @@ mod render;
 
 pub use charpage::{CharPage, CharPageSet, FormatCharPages};
 pub use chord_pro::FormatChordPro;
-pub use html::{wrap_html, FormatHTML};
+pub use html::{FormatHTML, wrap_html};
 pub use outputline::{FormatOutputLines, OutputLine};
 pub use render::FormatRender;

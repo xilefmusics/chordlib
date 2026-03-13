@@ -13,14 +13,14 @@ pub struct HtmlPageTemplate<'a> {
 }
 
 impl<'a> HtmlPageTemplate<'a> {
-    pub fn new() -> Self {
+    pub fn with_capacity(sections_capacity: usize) -> Self {
         Self {
             title: "",
             subtitle: "",
             key: "",
             tempo: &None,
             time: &None,
-            sections: Vec::new(),
+            sections: Vec::with_capacity(sections_capacity),
             copyright: &None,
         }
     }

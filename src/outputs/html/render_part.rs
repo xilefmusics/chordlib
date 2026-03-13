@@ -34,15 +34,19 @@ pub fn render_part(
             text = after_end;
             start_word_position = start_word_position.map(|s| s.saturating_sub(end));
 
-            result.push_str(&format!(
-                "<span class=\"{class}\">{before}</span></span></span>",
-                class = comment_class,
-                before = before_end
-            ));
+            result.push_str("<span class=\"");
+            result.push_str(comment_class);
+            result.push_str("\">");
+            result.push_str(before_end);
+            result.push_str("</span></span></span>");
             result.push_str("<span class=\"part\">");
-            result.push_str(&format!("<span class=\"{class}\">", class = comment_class));
+            result.push_str("<span class=\"");
+            result.push_str(comment_class);
+            result.push_str("\">");
         } else {
-            result.push_str(&format!("<span class=\"{class}\">", class = comment_class));
+            result.push_str("<span class=\"");
+            result.push_str(comment_class);
+            result.push_str("\">");
         }
 
         if let Some(start) = start_word_position {
@@ -52,7 +56,9 @@ pub fn render_part(
             result.push_str(before_start);
             result.push_str("</span></span>");
             result.push_str("<span class=\"word\"><span class=\"part\">");
-            result.push_str(&format!("<span class=\"{class}\">", class = comment_class));
+            result.push_str("<span class=\"");
+            result.push_str(comment_class);
+            result.push_str("\">");
         }
 
         result.push_str(text);

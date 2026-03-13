@@ -1,8 +1,8 @@
 use clap::Parser;
 
+use chordlib::Error;
 use chordlib::outputs::{FormatChordPro, FormatHTML, FormatRender};
 use chordlib::types::{ChordRepresentation, SimpleChord};
-use chordlib::Error;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -85,7 +85,7 @@ fn main() -> Result<(), Error> {
             args.output,
             (&song).format_html(None, representation.as_ref(), args.language, None),
         )?)
-    } else if args.output.len() == 0 {
+    } else if args.output.is_empty() {
         Ok(())
     } else {
         Err(Error::Other(format!(

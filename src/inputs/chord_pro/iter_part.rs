@@ -25,7 +25,7 @@ impl<'a> PartIterator<'a> {
 
         let comment = &self.line[..idx + 1];
         self.line = &self.line[idx + 1..];
-        return Ok(Part::new_comment(comment.to_string()));
+        Ok(Part::new_comment(comment.to_string()))
     }
 
     fn handle_curly_brace(&mut self) -> Result<Part, Error> {
@@ -100,11 +100,11 @@ impl<'a> PartIterator<'a> {
             self.line = &self.line[end_idx + 1..];
         }
 
-        if self.line.trim().len() == 0 {
+        if self.line.trim().is_empty() {
             return None;
         }
 
-        if self.chord_cache.len() == 0 {
+        if self.chord_cache.is_empty() {
             return Some(Err(Error::Parse("bar does not contain chords".into())));
         };
 
@@ -123,7 +123,7 @@ impl<'a> Iterator for PartIterator<'a> {
     type Item = Result<Part, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.chord_cache.len() > 0 {
+        if !self.chord_cache.is_empty() {
             return Some(Ok(Part::new_chord(self.chord_cache.remove(0))));
         }
 
@@ -151,7 +151,7 @@ impl<'a> Iterator for PartIterator<'a> {
             }
         }
 
-        if self.line.len() > 0 {
+        if !self.line.is_empty() {
             let text = self.line;
             self.line = "";
             return Some(("", text).try_into());

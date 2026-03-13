@@ -39,16 +39,16 @@ impl Line {
         let mut i = 0;
 
         while i < len {
-            let current = std::mem::replace(&mut self.parts[i], Part::default());
+            let current = std::mem::take(&mut self.parts[i]);
 
             let prev = if i > 0 {
-                Some(std::mem::replace(&mut self.parts[i - 1], Part::default()))
+                Some(std::mem::take(&mut self.parts[i - 1]))
             } else {
                 None
             };
 
             let next = if i + 1 < len {
-                Some(std::mem::replace(&mut self.parts[i + 1], Part::default()))
+                Some(std::mem::take(&mut self.parts[i + 1]))
             } else {
                 None
             };
