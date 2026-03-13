@@ -16,20 +16,49 @@ pub fn render_section(
         format!("\n{}:", section.title)
     };
 
-    let line_outputs: Vec<String> = section
-        .lines
-        .iter()
-        .map(|line| {
-            render_line(
-                line,
-                key,
-                representation,
-                language,
-                worship_pro_features,
-                bar_duration,
-            )
-        })
-        .collect();
+    let mut line_outputs: Vec<String> = Vec::new();
+
+    for line in &section.lines {
+        if worship_pro_features {
+            // For Worship Pro exports, preserve all available language texts by
+            // emitting one base line (language 0) and additional `&`-prefixed
+            // lines for higher language indices.
+            let max_langs = line
+                .parts
+                .iter()
+                .map(|p| p.languages.len())
+                .max()
+                .unwrap_or(1);
+
+            if max_langs > 1 {
+                for lang_idx in 0..max_langs {
+                    let rendered = render_line(
+                        line,
+                        key,
+                        representation,
+                        Some(lang_idx),
+                        worship_pro_features,
+                        bar_duration,
+                    );
+                    if lang_idx == 0 {
+                        line_outputs.push(rendered);
+                    } else {
+                        line_outputs.push(format!("&{}", rendered));
+                    }
+                }
+                continue;
+            }
+        }
+
+        line_outputs.push(render_line(
+            line,
+            key,
+            representation,
+            language,
+            worship_pro_features,
+            bar_duration,
+        ));
+    }
 
     let repeat_line = if section.repeat_count > 1 {
         Some(if worship_pro_features {

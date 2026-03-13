@@ -23,6 +23,9 @@ struct Args {
     pub spacing_remove: bool,
     #[arg(short, long, default_value_t = false)]
     pub nashville: bool,
+    /// Language index (0 = default, 1 = second language, ...)
+    #[arg(short = 'l', long)]
+    pub language: Option<usize>,
 }
 
 fn main() -> Result<(), Error> {
@@ -61,26 +64,26 @@ fn main() -> Result<(), Error> {
     if args.render {
         println!(
             "{}",
-            song.format_render(None, representation.as_ref(), None)
+            song.format_render(None, representation.as_ref(), args.language)
         );
     }
 
     if args.output.ends_with(".cp") || args.output.ends_with(".chopro") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_chord_pro(None, representation.as_ref(), None, false),
+            (&song).format_chord_pro(None, representation.as_ref(), args.language, false),
         )?)
     } else if args.output.ends_with(".wp") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_chord_pro(None, representation.as_ref(), None, true),
+            (&song).format_chord_pro(None, representation.as_ref(), args.language, true),
         )?)
     } else if args.output.ends_with(".json") {
         Ok(std::fs::write(args.output, serde_json::to_string(&song)?)?)
     } else if args.output.ends_with(".html") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_html(None, representation.as_ref(), None, None),
+            (&song).format_html(None, representation.as_ref(), args.language, None),
         )?)
     } else if args.output.len() == 0 {
         Ok(())

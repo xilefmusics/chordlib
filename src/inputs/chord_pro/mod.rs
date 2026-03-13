@@ -62,18 +62,100 @@ where
     } else {
         (raw.as_slice(), 1u32)
     };
-    let parsed = content_lines
-        .iter()
-        .map(|line| {
-            make_iter(line)
-                .collect::<Result<Vec<Part>, Error>>()
-                .map(Line::new)
-        })
-        .collect::<Result<Vec<Line>, Error>>()?;
+
+    let mut parsed_lines: Vec<Line> = Vec::new();
+
+    for line in content_lines.iter().copied() {
+        let trimmed = line.trim_start();
+
+        if trimmed.starts_with('&') {
+            if parsed_lines.is_empty() {
+                return Err(Error::Parse(
+                    "Worship Pro &-line cannot be the first line of a section".into(),
+                ));
+            }
+
+            let rest = trimmed[1..].trim_start();
+            let has_chords = rest.contains('[') && rest.contains(']');
+
+            let last_line = parsed_lines
+                .last_mut()
+                .expect("parsed_lines is not empty, qed");
+
+            if !has_chords {
+                let new_lang_idx = last_line
+                    .parts
+                    .iter()
+                    .map(|p| p.languages.len())
+                    .max()
+                    .unwrap_or(0);
+
+                for part in &mut last_line.parts {
+                    if part.languages.len() < new_lang_idx {
+                        part.languages.resize(new_lang_idx, String::new());
+                    }
+                }
+
+                let mut languages = vec![String::new(); new_lang_idx.saturating_add(1)];
+                languages[new_lang_idx] = rest.to_string();
+
+                last_line.parts.push(Part {
+                    chord: None,
+                    languages,
+                    comment: false,
+                });
+            } else {
+                let new_parts: Vec<Part> = make_iter(rest).collect::<Result<Vec<Part>, Error>>()?;
+
+                let prev_chords: Vec<_> = last_line
+                    .parts
+                    .iter()
+                    .filter_map(|p| p.chord.as_ref())
+                    .collect();
+                let new_chords: Vec<_> =
+                    new_parts.iter().filter_map(|p| p.chord.as_ref()).collect();
+
+                if prev_chords.len() != new_chords.len()
+                    || !prev_chords
+                        .iter()
+                        .zip(new_chords.iter())
+                        .all(|(a, b)| a == b)
+                {
+                    return Err(Error::Parse(
+                        "Worship Pro &-line chord sequence must match previous line".into(),
+                    ));
+                }
+
+                let new_lang_idx = last_line
+                    .parts
+                    .iter()
+                    .map(|p| p.languages.len())
+                    .max()
+                    .unwrap_or(0);
+
+                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts.into_iter()) {
+                    if prev_part.languages.len() < new_lang_idx.saturating_add(1) {
+                        prev_part
+                            .languages
+                            .resize(new_lang_idx.saturating_add(1), String::new());
+                    }
+                    let text = new_part
+                        .languages
+                        .get(0)
+                        .cloned()
+                        .unwrap_or_else(String::new);
+                    prev_part.languages[new_lang_idx] = text;
+                }
+            }
+        } else {
+            let parts = make_iter(line).collect::<Result<Vec<Part>, Error>>()?;
+            parsed_lines.push(Line::new(parts));
+        }
+    }
 
     Ok(Section::new_with_repeat(
         keyword.into(),
-        parsed,
+        parsed_lines,
         repeat_count,
     ))
 }
@@ -84,22 +166,28 @@ pub fn load(path: &str) -> Result<Song, Error> {
 
 pub fn load_string(input: &str) -> Result<Song, Error> {
     let mut title = None;
+    let mut titles = None;
     let mut subtitle = None;
     let mut copyright = None;
     let mut key = None;
     let mut artist = None;
+    let mut artists = None;
     let mut language = None;
+    let mut languages = None;
     let mut tempo = None;
     let mut time = None;
 
     let sections = SectionIterator::new(
         input,
         &mut title,
+        &mut titles,
         &mut subtitle,
         &mut copyright,
         &mut key,
         &mut artist,
+        &mut artists,
         &mut language,
+        &mut languages,
         &mut tempo,
         &mut time,
     )
@@ -140,11 +228,14 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     let title = title.ok_or(Error::Parse("no title given".into()))?;
     Ok(Song {
         title,
+        titles,
         subtitle,
         copyright,
         key: Some(key_simple),
         artist,
+        artists,
         language,
+        languages,
         tempo,
         time,
         sections,
@@ -221,7 +312,10 @@ mod tests {
 
         use crate::outputs::FormatChordPro;
         let wp = (&song).format_chord_pro(None, None, None, true);
-        assert!(wp.contains("{repeat}"), "Worship Pro export must contain {{repeat}}");
+        assert!(
+            wp.contains("{repeat}"),
+            "Worship Pro export must contain {{repeat}}"
+        );
 
         let cp = (&song).format_chord_pro(None, None, None, false);
         assert!(
@@ -241,6 +335,57 @@ mod tests {
         assert!(wp_n.contains("{repeat: 3}"));
         let cp_n = (&song_n).format_chord_pro(None, None, None, false);
         assert!(cp_n.contains("{comment: (repeat 3x)}"));
+    }
+
+    #[test]
+    fn worship_pro_export_preserves_multilingual_metadata() {
+        let input = r#"{title: "Title DE"}
+{title2: "Title EN"}
+{key: C}
+{language: de}
+{language2: en}
+{artist: "Artist DE"}
+{artist2: "Artist EN"}
+{section: Verse}
+[C]Line
+"#;
+        let song = load_string(input).expect("parse multilingual song");
+
+        use crate::outputs::FormatChordPro;
+        let wp = (&song).format_chord_pro(
+            None,
+            Some(&ChordRepresentation::Default),
+            None,
+            true, // worship_pro
+        );
+
+        // Primary metadata must be present.
+        assert!(
+            wp.contains("{title: Title DE}"),
+            "Worship Pro export must contain primary title"
+        );
+        assert!(
+            wp.contains("{language: de}"),
+            "Worship Pro export must contain primary language"
+        );
+        assert!(
+            wp.contains("{artist: Artist DE}"),
+            "Worship Pro export must contain primary artist"
+        );
+
+        // Secondary metadata must be preserved with numbered directives.
+        assert!(
+            wp.contains("{title2: Title EN}"),
+            "Worship Pro export must contain secondary title"
+        );
+        assert!(
+            wp.contains("{language2: en}"),
+            "Worship Pro export must contain secondary language"
+        );
+        assert!(
+            wp.contains("{artist2: Artist EN}"),
+            "Worship Pro export must contain secondary artist"
+        );
     }
 
     /// ChordPro with CCLI-style repeat markers [||:] and [:||] must import without error;
@@ -357,5 +502,192 @@ mod tests {
             .collect();
         assert_eq!(again_parts[0].get_duration(), Some(4000));
         assert_eq!(again_parts[1].get_duration(), Some(1500));
+    }
+
+    #[test]
+    fn language_directive_supports_multiple_directives() {
+        let input = r#"{title: Test}
+{key: C}
+{language: en}
+{language2: de}
+{language3: fr}
+{section: Verse}
+[C]Line
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.language.as_deref(), Some("en"));
+        let langs = song.language_list().expect("language list");
+        assert_eq!(langs, vec!["en", "de", "fr"]);
+    }
+
+    #[test]
+    fn artist_directive_supports_multiple_directives() {
+        let input = r#"{title: Test}
+{key: C}
+{artist: First Artist}
+{artist2: Second Artist}
+{artist3: Third Artist}
+{section: Verse}
+[C]Line
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.artist.as_deref(), Some("First Artist"));
+        assert_eq!(
+            song.artists.as_deref(),
+            Some(
+                &[
+                    "First Artist".to_string(),
+                    "Second Artist".to_string(),
+                    "Third Artist".to_string()
+                ][..]
+            )
+        );
+        let artist_list = song.artist_list().expect("artist list");
+        assert_eq!(
+            artist_list,
+            vec!["First Artist", "Second Artist", "Third Artist"]
+        );
+    }
+
+    #[test]
+    fn title_directive_supports_quoted_and_multiple() {
+        let input_single = r#"{title: "My Song Title"}
+{key: C}
+{section: Verse}
+[C]Line
+"#;
+        let song_single = load_string(input_single).expect("parse single");
+        assert_eq!(song_single.title, "My Song Title");
+        assert_eq!(
+            song_single.titles.as_deref(),
+            Some(&["My Song Title".to_string()][..])
+        );
+
+        let input_multi = r#"{title: Main}
+{title2: "Secondary Title"}
+{key: C}
+{section: Verse}
+[C]Line
+"#;
+        let song_multi = load_string(input_multi).expect("parse multi");
+        assert_eq!(song_multi.title, "Main");
+        assert_eq!(
+            song_multi.titles.as_deref(),
+            Some(&["Main".to_string(), "Secondary Title".to_string()][..])
+        );
+        // Language-aware helper should pick the second title for language index 1
+        // and fall back to the primary for out-of-range indices.
+        assert_eq!(song_multi.title_for_language(Some(0)), "Main");
+        assert_eq!(song_multi.title_for_language(Some(1)), "Secondary Title");
+        assert_eq!(song_multi.title_for_language(Some(2)), "Main");
+    }
+
+    #[test]
+    fn worship_pro_ampersand_first_line_rejected() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+&Free translation as first line
+"#;
+        let r = load_string(input);
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn worship_pro_ampersand_free_translation_without_chords() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[C]Hallo
+&Hello
+"#;
+        let song = load_string(input).expect("parse");
+        let line = &song.sections[0].lines[0];
+        assert!(
+            line.parts.len() >= 2,
+            "expected base parts plus free-translation part"
+        );
+        let base_part = &line.parts[0];
+        assert_eq!(base_part.languages.get(0).unwrap(), "Hallo");
+
+        let free_part = &line.parts[line.parts.len() - 1];
+        assert!(free_part.chord.is_none());
+        assert_eq!(free_part.languages.get(1).unwrap(), "Hello");
+    }
+
+    #[test]
+    fn worship_pro_ampersand_with_matching_chords_merges_languages() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[C]Hallo [G]Welt
+&[C]Hello [G]World
+"#;
+        let song = load_string(input).expect("parse");
+        let line = &song.sections[0].lines[0];
+        assert_eq!(line.parts.len(), 2);
+        assert_eq!(line.parts[0].languages.get(0).unwrap(), "Hallo ");
+        assert_eq!(line.parts[0].languages.get(1).unwrap(), "Hello ");
+        assert_eq!(line.parts[1].languages.get(0).unwrap(), "Welt");
+        assert_eq!(line.parts[1].languages.get(1).unwrap(), "World");
+    }
+
+    #[test]
+    fn worship_pro_ampersand_with_mismatching_chords_is_error() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[C]Hallo [G]Welt
+&[C]Hello [Am]World
+"#;
+        let r = load_string(input);
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn worship_pro_ampersand_stacks_multiple_languages() {
+        let input = r#"{title: Test}
+{key: C}
+{language: de en fr}
+{section: Verse}
+[C]Hallo
+&[C]Hello
+&[C]Bonjour
+"#;
+        let song = load_string(input).expect("parse");
+        let line = &song.sections[0].lines[0];
+        assert_eq!(line.parts[0].languages.get(0).unwrap(), "Hallo");
+        assert_eq!(line.parts[0].languages.get(1).unwrap(), "Hello");
+        assert_eq!(line.parts[0].languages.get(2).unwrap(), "Bonjour");
+    }
+
+    #[test]
+    fn worship_pro_export_preserves_multilingual_lyrics() {
+        let input = r#"{title: Test}
+{key: C}
+{language: de}
+{language2: en}
+{section: Verse}
+[C]Hallo
+&[C]Hello
+"#;
+        let song = load_string(input).expect("parse multilingual lyrics");
+
+        use crate::outputs::FormatChordPro;
+        let wp = (&song).format_chord_pro(
+            None,
+            Some(&ChordRepresentation::Default),
+            None,
+            true, // worship_pro
+        );
+
+        assert!(
+            wp.contains("[C]Hallo"),
+            "Worship Pro export must contain base language lyrics"
+        );
+        assert!(
+            wp.contains("&[C]Hello"),
+            "Worship Pro export must contain second language lyrics as &-line"
+        );
     }
 }

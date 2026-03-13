@@ -4,12 +4,20 @@ use super::{Section, SimpleChord};
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Song {
+    /// Primary title of the song (typically the first title in the `{title: ...}` directive).
     pub title: String,
+    /// Optional list of titles for different languages, in the same order as the `{language: ...}` directive.
+    /// When present, index 0 should always match `title`.
+    pub titles: Option<Vec<String>>,
     pub subtitle: Option<String>,
     pub copyright: Option<String>,
     pub key: Option<SimpleChord>,
     pub artist: Option<String>,
+    /// Optional list of artists; when present, index 0 should usually match `artist`.
+    pub artists: Option<Vec<String>>,
     pub language: Option<String>,
+    /// Optional list of language codes; when present, index 0 should usually match `language`.
+    pub languages: Option<Vec<String>>,
     pub tempo: Option<u32>,
     pub time: Option<(u32, u32)>,
     pub sections: Vec<Section>,
@@ -41,6 +49,23 @@ impl Song {
         }
     }
 
+    /// Returns the most appropriate title for the given language index.
+    ///
+    /// If `language` is `Some(idx)` and `self.titles` contains a non-empty
+    /// title at that index, that title is returned. Otherwise, this falls
+    /// back to the primary `self.title`.
+    pub fn title_for_language(&self, language: Option<usize>) -> &str {
+        let idx = language.unwrap_or(0);
+        if let Some(titles) = &self.titles {
+            if let Some(candidate) = titles.get(idx) {
+                if !candidate.is_empty() {
+                    return candidate;
+                }
+            }
+        }
+        &self.title
+    }
+
     pub fn move_chords_to_next_vowels(mut self) -> Self {
         self.sections = self
             .sections
@@ -57,6 +82,36 @@ impl Song {
             .map(Section::remove_manual_spacing)
             .collect();
         self
+    }
+
+    pub fn language_list(&self) -> Option<Vec<String>> {
+        if let Some(langs) = &self.languages {
+            if langs.is_empty() {
+                return None;
+            }
+            return Some(langs.clone());
+        }
+
+        self.language.as_ref().map(|langs| {
+            langs
+                .split_whitespace()
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .collect()
+        })
+    }
+
+    /// Returns a list of artists, preferring the structured `artists` field when present.
+    pub fn artist_list(&self) -> Option<Vec<String>> {
+        if let Some(artists) = &self.artists {
+            if artists.is_empty() {
+                return None;
+            }
+            return Some(artists.clone());
+        }
+        self.artist
+            .as_ref()
+            .map(|a| vec![a.clone()])
     }
 }
 
@@ -104,5 +159,38 @@ mod tests {
 
         let song_default = Song::default();
         assert_eq!(song_default.bar_duration(), 4000);
+    }
+
+    #[test]
+    fn language_list_prefers_structured_languages() {
+        let song = Song {
+            language: Some("legacy should be ignored when vector present".to_string()),
+            languages: Some(vec!["en".to_string(), "de".to_string(), "fr".to_string()]),
+            ..Song::default()
+        };
+        let langs = song.language_list().expect("language list");
+        assert_eq!(langs, vec!["en", "de", "fr"]);
+    }
+
+    #[test]
+    fn title_for_language_prefers_titles_vector_and_falls_back() {
+        let song = Song {
+            title: "Primary".to_string(),
+            titles: Some(vec![
+                "Primary".to_string(),
+                "Secondary".to_string(),
+                String::new(),
+            ]),
+            ..Song::default()
+        };
+
+        // Default / language 0 → primary title.
+        assert_eq!(song.title_for_language(None), "Primary");
+        assert_eq!(song.title_for_language(Some(0)), "Primary");
+        // Language 1 → second title.
+        assert_eq!(song.title_for_language(Some(1)), "Secondary");
+        // Out-of-range or empty entries fall back to primary.
+        assert_eq!(song.title_for_language(Some(2)), "Primary");
+        assert_eq!(song.title_for_language(Some(10)), "Primary");
     }
 }
