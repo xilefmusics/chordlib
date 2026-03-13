@@ -104,11 +104,14 @@ pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Resul
 
     Ok(Song {
         title: title.into(),
+        titles: None,
         subtitle: None,  // TODO: parse subtitle
         copyright: None, // TODO: parse copyright
         key: Some(SimpleChord::guess_key(key)),
         artist: Some(artist.into()),
+        artists: None,
         language: None, // TODO: parse language
+        languages: None,
         tempo,
         time,
         sections,
