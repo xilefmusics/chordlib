@@ -113,14 +113,22 @@ impl<'a> LineRenderer<'a> {
             return "".to_string();
         }
         let diff = diff as usize;
-        let mut result = String::with_capacity(256);
+        let mut result = String::with_capacity(64 + diff * 6);
         result.push_str("<span class=\"text\">");
         if inside_word {
-            result.push_str(&" ".repeat((diff - 1) * 2));
+            let spaces = (diff - 1) * 2;
+            for _ in 0..spaces {
+                result.push(' ');
+            }
             result.push('-');
-            result.push_str(&" ".repeat((diff - 1) * 2));
+            for _ in 0..spaces {
+                result.push(' ');
+            }
         } else {
-            result.push_str(&" ".repeat(diff * 5));
+            let spaces = diff * 5;
+            for _ in 0..spaces {
+                result.push(' ');
+            }
         }
         result.push_str("</span>");
         result

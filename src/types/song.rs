@@ -83,6 +83,17 @@ impl Song {
         self
     }
 
+    /// Returns a slice of artists, preferring the structured `artists` field when present.
+    pub fn artist_slice(&self) -> Option<&[String]> {
+        if let Some(artists) = &self.artists {
+            if artists.is_empty() {
+                return None;
+            }
+            return Some(artists.as_slice());
+        }
+        self.artist.as_ref().map(std::slice::from_ref)
+    }
+
     pub fn language_list(&self) -> Option<Vec<String>> {
         if let Some(langs) = &self.languages {
             if langs.is_empty() {

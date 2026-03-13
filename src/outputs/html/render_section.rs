@@ -79,11 +79,9 @@ pub fn render_section(
         ));
     }
 
-    let title = section.title.to_uppercase();
-
     format!(
         "<p><span class=\"keyword\">{}</span><br>{}</p>",
-        title, content
+        section.title, content
     )
 }
 
@@ -126,7 +124,7 @@ mod tests {
         let song = make_song_with_section("Chorus", 1);
         let html = (&song).format_html(None, Some(&ChordRepresentation::Default), None, None);
 
-        assert!(html.contains("<span class=\"keyword\">CHORUS</span>"));
+        assert!(html.contains("<span class=\"keyword\">Chorus</span>"));
         assert!(!html.contains("(repeat"));
     }
 

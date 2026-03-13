@@ -73,6 +73,10 @@ body {
   white-space: pre;
 }
 
+.keyword {
+  text-transform: uppercase;
+}
+
 .text {
   white-space: pre-wrap;
 }

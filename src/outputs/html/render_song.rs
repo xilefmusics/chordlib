@@ -16,19 +16,21 @@ impl FormatHTML for &Song {
         let key = key.unwrap_or(&self_key);
         let key_str = SimpleChord::default().format(key, &ChordRepresentation::Default);
 
-        let selected_artist = self.artist_list().and_then(|list| {
+        let selected_artist = self.artist_slice().and_then(|list| {
             let idx = language;
             if let Some(candidate) = list.get(idx)
                 && !candidate.trim().is_empty()
             {
-                return Some(candidate.clone());
+                return Some(candidate.as_str());
             }
-            list.first().cloned().filter(|s| !s.trim().is_empty())
+            list.first()
+                .map(String::as_str)
+                .filter(|s| !s.trim().is_empty())
         });
 
         let subtitle = match (
             self.subtitle.as_deref().filter(|s| !s.is_empty()),
-            selected_artist.as_deref(),
+            selected_artist,
         ) {
             (Some(sub), Some(art)) => format!("{sub} | {art}"),
             (Some(sub), None) => sub.to_string(),
@@ -37,6 +39,7 @@ impl FormatHTML for &Song {
         };
 
         let beats_per_bar = self.time.map(|(n, _)| n).unwrap_or(4);
+        let bar_duration = self.bar_duration();
         let display_title = self.title_for_language(Some(language));
         let page_template = self
             .sections
@@ -49,12 +52,12 @@ impl FormatHTML for &Song {
                         .as_ref()
                         .map_or(&ChordRepresentation::Default, |v| v),
                     language,
-                    self.bar_duration(),
+                    bar_duration,
                     beats_per_bar,
                 )
             })
             .fold(
-                HtmlPageTemplate::new()
+                HtmlPageTemplate::with_capacity(self.sections.len())
                     .title(display_title)
                     .subtitle(&subtitle)
                     .key(key_str)
