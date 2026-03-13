@@ -15,7 +15,7 @@ impl<'a> PartIterator<'a> {
                 content_text: Some(vec[1]),
             }
         } else if vec.len() == 1 {
-            if vec[0].find("[ch]").is_some() {
+            if vec[0].contains("[ch]") {
                 Self {
                     content_chord: Some(vec[0]),
                     content_text: None,

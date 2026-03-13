@@ -151,14 +151,12 @@ impl<'a> Iterator for SectionIterator<'a> {
                 } else {
                     self.lines_cache.push(line.trim_end());
                 }
+            } else if let Some(title) = self.section_title_cache {
+                let lines_cache = std::mem::take(&mut self.lines_cache);
+                self.section_title_cache = None;
+                return Some((title, lines_cache));
             } else {
-                if let Some(title) = self.section_title_cache {
-                    let lines_cache = std::mem::take(&mut self.lines_cache);
-                    self.section_title_cache = None;
-                    return Some((title, lines_cache));
-                } else {
-                    return None;
-                }
+                return None;
             }
         }
     }
