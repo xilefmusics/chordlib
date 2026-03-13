@@ -132,18 +132,13 @@ where
                     .max()
                     .unwrap_or(0);
 
-                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts.into_iter())
-                {
+                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts.into_iter()) {
                     if prev_part.languages.len() < new_lang_idx.saturating_add(1) {
                         prev_part
                             .languages
                             .resize(new_lang_idx.saturating_add(1), String::new());
                     }
-                    let text = new_part
-                        .languages
-                        .first()
-                        .cloned()
-                        .unwrap_or_default();
+                    let text = new_part.languages.first().cloned().unwrap_or_default();
                     prev_part.languages[new_lang_idx] = text;
                 }
             }

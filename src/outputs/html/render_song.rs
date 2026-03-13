@@ -1,4 +1,4 @@
-use super::{render_section, CssTemplate, FormatHTML, HtmlPageTemplate, HtmlTemplate};
+use super::{CssTemplate, FormatHTML, HtmlPageTemplate, HtmlTemplate, render_section};
 use crate::types::{ChordRepresentation, SimpleChord, Song};
 use askama::Template;
 
@@ -12,11 +12,7 @@ impl FormatHTML for &Song {
     ) -> (String, String) {
         let language = language.unwrap_or(0);
 
-        let self_key = self
-            .key
-            .as_ref()
-            .unwrap_or(&SimpleChord::default())
-            .clone();
+        let self_key = self.key.as_ref().unwrap_or(&SimpleChord::default()).clone();
         let key = key.unwrap_or(&self_key);
         let key_str = SimpleChord::default().format(key, &ChordRepresentation::Default);
 
@@ -134,14 +130,8 @@ mod tests {
         let html_lang1 = (&song).format_html(None, Some(&rep), Some(1), None);
 
         // <title> tag
-        assert_eq!(
-            extract_tag(&html_lang0, "title").as_deref(),
-            Some("Single")
-        );
-        assert_eq!(
-            extract_tag(&html_lang1, "title").as_deref(),
-            Some("Single")
-        );
+        assert_eq!(extract_tag(&html_lang0, "title").as_deref(), Some("Single"));
+        assert_eq!(extract_tag(&html_lang1, "title").as_deref(), Some("Single"));
 
         // <h1 class="title"> in header
         assert!(html_lang0.contains(r#"<h1 class="title">Single</h1>"#));

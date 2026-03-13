@@ -108,9 +108,7 @@ impl Song {
             }
             return Some(artists.clone());
         }
-        self.artist
-            .as_ref()
-            .map(|a| vec![a.clone()])
+        self.artist.as_ref().map(|a| vec![a.clone()])
     }
 }
 

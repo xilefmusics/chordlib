@@ -1,5 +1,5 @@
-use super::render_line::render_line;
 use super::FormatChordPro;
+use super::render_line::render_line;
 use crate::types::{ChordRepresentation, Section, SimpleChord};
 
 pub fn render_section(

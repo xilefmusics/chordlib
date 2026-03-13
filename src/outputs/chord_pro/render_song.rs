@@ -1,5 +1,5 @@
-use super::render_section::render_section;
 use super::FormatChordPro;
+use super::render_section::render_section;
 use crate::types::{ChordRepresentation, SimpleChord, Song};
 
 impl FormatChordPro for &Song {

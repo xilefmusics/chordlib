@@ -1,8 +1,8 @@
 use clap::Parser;
 
+use chordlib::Error;
 use chordlib::outputs::{FormatChordPro, FormatHTML, FormatRender};
 use chordlib::types::{ChordRepresentation, SimpleChord};
-use chordlib::Error;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]

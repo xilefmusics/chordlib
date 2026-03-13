@@ -114,7 +114,7 @@ pub fn render_bars(
     let separators = if repeat_count == 0 {
         "|".to_string()
     } else {
-        format!("|{}","<br>|".repeat(repeat_count))
+        format!("|{}", "<br>|".repeat(repeat_count))
     };
 
     let mut result = String::with_capacity(128);

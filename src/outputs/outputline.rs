@@ -42,8 +42,7 @@ impl FormatOutputLines for &Line {
                     chord_line,
                     chord.format(
                         key.unwrap_or(&SimpleChord::default()),
-                        representation
-                            .unwrap_or(&ChordRepresentation::Default)
+                        representation.unwrap_or(&ChordRepresentation::Default)
                     )
                 );
             }
