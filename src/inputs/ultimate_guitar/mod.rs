@@ -111,6 +111,7 @@ pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Resul
         languages: None,
         tempo,
         time,
+        tags: Default::default(),
         sections,
     }
     .normalize()

@@ -105,6 +105,13 @@ impl FormatChordPro for &Song {
             meta.push(format!("{{time{}{}/{}}}", separator, time.0, time.1));
         }
 
+        // Custom tags (ChordPro {meta: name value}); written for both Chord Pro and Worship Pro
+        if !self.tags.is_empty() {
+            for (name, value) in &self.tags {
+                meta.push(format!("{{meta: {} {}}}", name, value));
+            }
+        }
+
         meta.into_iter()
             .chain(self.sections.iter().map(|section| {
                 render_section(

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use super::{Section, SimpleChord};
@@ -20,6 +22,10 @@ pub struct Song {
     pub languages: Option<Vec<String>>,
     pub tempo: Option<u32>,
     pub time: Option<(u32, u32)>,
+    /// Custom tags (e.g. scripture, hymn_type) from ChordPro `{meta: name value}`.
+    /// Only read/written by chord pro I/O; other formats ignore this.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tags: BTreeMap<String, String>,
     pub sections: Vec<Section>,
 }
 

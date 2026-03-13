@@ -5,6 +5,8 @@ use iter_part::PartIterator;
 use iter_section::SectionIterator;
 use iter_space_section::SpaceSectionIterator;
 
+use std::collections::BTreeMap;
+
 use crate::error::Error;
 use crate::types::{Line, Part, Section, SimpleChord, Song};
 
@@ -171,6 +173,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     let mut languages = None;
     let mut tempo = None;
     let mut time = None;
+    let mut tags = BTreeMap::new();
 
     let sections = SectionIterator::new(
         input,
@@ -185,6 +188,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
         &mut languages,
         &mut tempo,
         &mut time,
+        &mut tags,
     )
     .map(|(keyword, lines)| {
         build_section_from_lines(keyword, &lines, |line| PartIterator::new(line, 4000))
@@ -233,6 +237,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
         languages,
         tempo,
         time,
+        tags,
         sections,
     }
     .normalize()
@@ -654,6 +659,58 @@ mod tests {
         assert_eq!(line.parts[0].languages.first().unwrap(), "Hallo");
         assert_eq!(line.parts[0].languages.get(1).unwrap(), "Hello");
         assert_eq!(line.parts[0].languages.get(2).unwrap(), "Bonjour");
+    }
+
+    /// Custom tags via ChordPro {meta: name value}: parsed into song.tags and round-trip.
+    /// See https://github.com/xilefmusics/chordlib/issues/8
+    #[test]
+    fn custom_meta_tags_roundtrip() {
+        let input = r#"{title: Tagged Song}
+{key: C}
+{meta: scripture John 3:16}
+{meta: hymn_type praise}
+{section: Verse}
+[C]Line
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(
+            song.tags.get("scripture").map(String::as_str),
+            Some("John 3:16")
+        );
+        assert_eq!(
+            song.tags.get("hymn_type").map(String::as_str),
+            Some("praise")
+        );
+        assert_eq!(song.sections.len(), 1);
+        assert_eq!(
+            song.sections[0].lines.len(),
+            1,
+            "meta lines must not become content"
+        );
+
+        use crate::outputs::FormatChordPro;
+        let wp = (&song).format_chord_pro(None, None, None, true);
+        assert!(wp.contains("{meta: scripture John 3:16}"));
+        assert!(wp.contains("{meta: hymn_type praise}"));
+
+        let cp = (&song).format_chord_pro(None, None, None, false);
+        assert!(
+            cp.contains("{meta: scripture John 3:16}"),
+            "Chord Pro export must contain custom meta tags"
+        );
+        assert!(cp.contains("{meta: hymn_type praise}"));
+
+        for output in [&wp, &cp] {
+            let again = load_string(output).expect("round-trip");
+            assert_eq!(
+                again.tags.get("scripture").map(String::as_str),
+                Some("John 3:16")
+            );
+            assert_eq!(
+                again.tags.get("hymn_type").map(String::as_str),
+                Some("praise")
+            );
+        }
     }
 
     #[test]
