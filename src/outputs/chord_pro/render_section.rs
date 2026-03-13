@@ -16,8 +16,10 @@ pub fn render_section(
         format!("\n{}:", section.title)
     };
 
-    std::iter::once(keyword)
-        .chain(section.lines.iter().map(|line| {
+    let line_outputs: Vec<String> = section
+        .lines
+        .iter()
+        .map(|line| {
             render_line(
                 line,
                 key,
@@ -26,7 +28,30 @@ pub fn render_section(
                 worship_pro_features,
                 bar_duration,
             )
-        }))
+        })
+        .collect();
+
+    let repeat_line = if section.repeat_count > 1 {
+        Some(if worship_pro_features {
+            if section.repeat_count == 2 {
+                "{repeat}".to_string()
+            } else {
+                format!("{{repeat: {}}}", section.repeat_count)
+            }
+        } else {
+            if section.repeat_count == 2 {
+                "{comment: (repeat)}".to_string()
+            } else {
+                format!("{{comment: (repeat {}x)}}", section.repeat_count)
+            }
+        })
+    } else {
+        None
+    };
+
+    std::iter::once(keyword)
+        .chain(line_outputs.into_iter())
+        .chain(repeat_line.into_iter())
         .collect::<Vec<String>>()
         .join("\n")
 }

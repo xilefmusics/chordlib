@@ -207,6 +207,42 @@ mod tests {
         assert_eq!(song.sections[0].repeat_count, 1);
     }
 
+    /// Worship Pro export keeps {repeat} / {repeat: N}; ChordPro export uses {comment: (repeat)}.
+    #[test]
+    fn repeat_export_worship_pro_and_chord_pro() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Chorus}
+[C][G][Am][F]
+{repeat}
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.sections[0].repeat_count, 2);
+
+        use crate::outputs::FormatChordPro;
+        let wp = (&song).format_chord_pro(None, None, None, true);
+        assert!(wp.contains("{repeat}"), "Worship Pro export must contain {{repeat}}");
+
+        let cp = (&song).format_chord_pro(None, None, None, false);
+        assert!(
+            cp.contains("{comment: (repeat)}"),
+            "ChordPro export must contain {{comment: (repeat)}}"
+        );
+
+        let input_n = r#"{title: Test}
+{key: C}
+{section: Verse}
+[G][C][D]
+{repeat: 3}
+"#;
+        let song_n = load_string(input_n).expect("parse");
+        assert_eq!(song_n.sections[0].repeat_count, 3);
+        let wp_n = (&song_n).format_chord_pro(None, None, None, true);
+        assert!(wp_n.contains("{repeat: 3}"));
+        let cp_n = (&song_n).format_chord_pro(None, None, None, false);
+        assert!(cp_n.contains("{comment: (repeat 3x)}"));
+    }
+
     /// ChordPro with CCLI-style repeat markers [||:] and [:||] must import without error;
     /// markers are stripped and only real chords (e.g. [G][C][D]) are parsed.
     /// See: https://github.com/xilefmusics/chordlib/issues/6
