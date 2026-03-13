@@ -8,13 +8,11 @@ pub fn parse_header(content: &str) -> (Option<u32>, Option<(u32, u32)>) {
 
         if let Some(value) = lower.strip_prefix("tempo:") {
             tempo = value
-                .trim()
                 .split_whitespace()
                 .next()
                 .and_then(|s| s.parse().ok());
         } else if let Some(value) = lower.strip_prefix("time:") {
             time = value
-                .trim()
                 .split_once('/')
                 .and_then(|(n, d)| Some((n.trim().parse().ok()?, d.trim().parse().ok()?)));
         }

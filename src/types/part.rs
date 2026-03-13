@@ -114,7 +114,7 @@ impl Part {
                     .unwrap_or(usize::MAX),
             )
         {
-            self.languages[language] = self.languages[language].replace("\t", " ");
+            self.languages[language] = self.languages[language].replace('\t', " ");
             self.languages[language] = self.languages[language].replace(" - ", "");
             self.languages[language] = normalize_whitespace(&self.languages[language]);
 
@@ -122,24 +122,22 @@ impl Part {
                 self.languages[language] = self.languages[language].trim_start().to_string();
             }
 
-            if let Some(prev) = prev.as_mut() {
-                if self.languages[language].starts_with("- ")
-                    && prev.languages[language].ends_with(' ')
-                {
-                    let new_len = prev.languages[language].len() - 1;
-                    prev.languages[language].truncate(new_len);
-                    self.languages[language] = self.languages[language].split_off(2)
-                }
+            if let Some(prev) = prev.as_mut()
+                && self.languages[language].starts_with("- ")
+                && prev.languages[language].ends_with(' ')
+            {
+                let new_len = prev.languages[language].len() - 1;
+                prev.languages[language].truncate(new_len);
+                self.languages[language] = self.languages[language].split_off(2)
             }
 
-            if let Some(next) = next.as_mut() {
-                if self.languages[language].starts_with("- ")
-                    && next.languages[language].ends_with(' ')
-                {
-                    let new_len = self.languages[language].len() - 2;
-                    self.languages[language].truncate(new_len);
-                    next.languages[language] = next.languages[language].split_off(2)
-                }
+            if let Some(next) = next.as_mut()
+                && self.languages[language].starts_with("- ")
+                && next.languages[language].ends_with(' ')
+            {
+                let new_len = self.languages[language].len() - 2;
+                self.languages[language].truncate(new_len);
+                next.languages[language] = next.languages[language].split_off(2)
             }
         }
 
@@ -173,7 +171,7 @@ impl TryFrom<(&str, &str)> for Part {
 
     fn try_from(value: (&str, &str)) -> Result<Self, Self::Error> {
         Ok(Self {
-            chord: if value.0.len() == 0 {
+            chord: if value.0.is_empty() {
                 None
             } else {
                 Some(Chord::from_str(value.0)?)

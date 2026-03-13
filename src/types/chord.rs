@@ -44,17 +44,19 @@ impl Chord {
         Self::default().transpose(level)
     }
 
-    pub fn transpose(self: Self, level: u8) -> Self {
+    pub fn transpose(self, level: u8) -> Self {
         let mut result = self;
         result.main = result.main.transpose(level);
-        result.base.clone().map(|base| base.transpose(level));
+        if let Some(base) = result.base.clone() {
+            result.base = Some(base.transpose(level));
+        }
         result
     }
 
-    pub fn normalize(self: Self, key: &SimpleChord) -> Self {
+    pub fn normalize(self, key: &SimpleChord) -> Self {
         let mut result = self;
-        result.main = result.main.normalize(&key);
-        result.base = result.base.clone().map(|base| base.normalize(&key));
+        result.main = result.main.normalize(key);
+        result.base = result.base.clone().map(|base| base.normalize(key));
         result
     }
 
@@ -122,30 +124,28 @@ impl Chord {
         format!(
             "{}{}{}{}{}{}",
             optional_start,
-            self.main.format(&key, &representation),
+            self.main.format(key, representation),
             self.kind.format(),
             self.base
                 .clone()
-                .map(|base| format!("/{}", base.format(&key, &representation)))
-                .unwrap_or("".into()),
+                .map(|base| format!("/{}", base.format(key, representation)))
+                .unwrap_or_default(),
             self.var,
             optional_end,
         )
     }
 
-    fn parse_simple_chord<'a>(s: &'a str) -> Result<(SimpleChord, &'a str), Error> {
+    fn parse_simple_chord(s: &str) -> Result<(SimpleChord, &str), Error> {
         let l1 = s.chars().next().map_or(0, |c| c.len_utf8());
         let l2 = s.chars().nth(1).map_or(0, |c| c.len_utf8());
 
-        if l2 > 0 {
-            if let Ok(chord) = SimpleChord::try_from(&s[..l1 + l2]) {
-                return Ok((chord, &s[l1 + l2..]));
-            }
+        if l2 > 0 && SimpleChord::try_from(&s[..l1 + l2]).is_ok() {
+            let chord = SimpleChord::try_from(&s[..l1 + l2])?;
+            return Ok((chord, &s[l1 + l2..]));
         }
-        if l1 > 0 {
-            if let Ok(chord) = SimpleChord::try_from(&s[..l1]) {
-                return Ok((chord, &s[l1..]));
-            }
+        if l1 > 0 && SimpleChord::try_from(&s[..l1]).is_ok() {
+            let chord = SimpleChord::try_from(&s[..l1])?;
+            return Ok((chord, &s[l1..]));
         }
         Err(Error::Parse(format!(
             "can not parse a simple chord from the string: {}",
@@ -153,7 +153,7 @@ impl Chord {
         )))
     }
 
-    fn parse_kind<'a>(s: &'a str) -> (Kind, &'a str) {
+    fn parse_kind(s: &str) -> (Kind, &str) {
         if s.len() >= 4 {
             let l4: usize = s.chars().take(4).map(|c| c.len_utf8()).sum();
             match &s[..l4] {
@@ -173,7 +173,7 @@ impl Chord {
             }
         }
 
-        if s.len() >= 1 {
+        if !s.is_empty() {
             let l1 = s.chars().next().map_or(0, |c| c.len_utf8());
             match &s[..l1] {
                 "m" => return (Kind::Minor, &s[l1..]),
@@ -186,14 +186,14 @@ impl Chord {
         (Kind::Major, s)
     }
 
-    fn parse_base<'a>(s: &'a str) -> Result<(Option<SimpleChord>, &'a str), Error> {
-        if s.len() == 0 {
+    fn parse_base(s: &str) -> Result<(Option<SimpleChord>, &str), Error> {
+        if s.is_empty() {
             return Ok((None, s));
         }
         Self::parse_simple_chord(s).map(|(chord, s)| (Some(chord), s))
     }
 
-    fn parse_var<'a>(s: &'a str) -> (&'a str, &'a str) {
+    fn parse_var(s: &str) -> (&str, &str) {
         match s.split_once('/') {
             Some((var, s)) => (var, s),
             None => (s, ""),
@@ -201,7 +201,7 @@ impl Chord {
     }
 
     /// Parse duration after ':' as clicks (decimal allowed); returns milliclicks (clicks * 1000).
-    fn parse_duration<'a>(s: &'a str) -> Result<(Option<u32>, &'a str), Error> {
+    fn parse_duration(s: &str) -> Result<(Option<u32>, &str), Error> {
         if let Some((before, after)) = s.split_once(':') {
             let clicks: f64 = after
                 .trim()

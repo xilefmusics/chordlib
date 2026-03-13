@@ -32,7 +32,7 @@ impl Song {
     pub fn normalize(&mut self) -> &mut Self {
         for section in &mut self.sections {
             if let Some(key) = &self.key {
-                section.normalize(&key);
+                section.normalize(key);
             }
         }
         self
@@ -56,12 +56,11 @@ impl Song {
     /// back to the primary `self.title`.
     pub fn title_for_language(&self, language: Option<usize>) -> &str {
         let idx = language.unwrap_or(0);
-        if let Some(titles) = &self.titles {
-            if let Some(candidate) = titles.get(idx) {
-                if !candidate.is_empty() {
-                    return candidate;
-                }
-            }
+        if let Some(titles) = &self.titles
+            && let Some(candidate) = titles.get(idx)
+            && !candidate.is_empty()
+        {
+            return candidate;
         }
         &self.title
     }

@@ -12,25 +12,23 @@ impl<'a> Iterator for TabIterator<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.content.len() == 0 {
+        if self.content.is_empty() {
             return None;
         }
         if self.content.starts_with("[tab]") {
             self.content = &self.content[5..];
             let index = self.content.find("[/tab]")?;
             let result = &self.content[..index];
-            self.content = &self.content[index + 6..].trim_start_matches('\n');
+            self.content = self.content[index + 6..].trim_start_matches('\n');
+            Some(result)
+        } else if let Some(index) = self.content.find('\n') {
+            let result = &self.content[..index];
+            self.content = &self.content[index + 1..];
             Some(result)
         } else {
-            if let Some(index) = self.content.find('\n') {
-                let result = &self.content[..index];
-                self.content = &self.content[index + 1..];
-                Some(result)
-            } else {
-                let result = self.content;
-                self.content = "";
-                Some(result)
-            }
+            let result = self.content;
+            self.content = "";
+            Some(result)
         }
     }
 }

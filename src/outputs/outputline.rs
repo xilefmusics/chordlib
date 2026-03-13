@@ -27,24 +27,23 @@ impl FormatOutputLines for &Line {
         let language = language.unwrap_or(0);
 
         for part in &self.parts {
-            if let Some(chord) = part.chord.clone() {
+            if let Some(chord) = &part.chord {
                 let chord_chars = chord_line.chars().count();
                 let text_chars = text_line.chars().count();
                 if text_chars > chord_chars {
                     for _ in 0..(text_chars - chord_chars) {
-                        chord_line.push_str(" ");
+                        chord_line.push(' ');
                     }
                 } else if chord_chars > 0 {
-                    chord_line.push_str(" ");
+                    chord_line.push(' ');
                 }
                 chord_line = format!(
                     "{}{}",
                     chord_line,
                     chord.format(
-                        key.as_ref().unwrap_or(&&SimpleChord::default()),
+                        key.unwrap_or(&SimpleChord::default()),
                         representation
-                            .as_ref()
-                            .unwrap_or(&&ChordRepresentation::default())
+                            .unwrap_or(&ChordRepresentation::Default)
                     )
                 );
             }
@@ -52,10 +51,10 @@ impl FormatOutputLines for &Line {
         }
 
         let mut result = Vec::default();
-        if chord_line.len() > 0 {
+        if !chord_line.is_empty() {
             result.push(OutputLine::Chord(chord_line));
         }
-        if text_line.len() > 0 {
+        if !text_line.is_empty() {
             result.push(OutputLine::Text(text_line));
         }
         result
@@ -86,7 +85,7 @@ impl FormatOutputLines for &Song {
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
     ) -> Vec<OutputLine> {
-        let self_key = self.key.clone().unwrap_or(SimpleChord::default()).into();
+        let self_key = self.key.clone().unwrap_or_default();
         let key = key.unwrap_or(&self_key);
         self.sections
             .iter()

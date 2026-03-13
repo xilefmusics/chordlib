@@ -110,10 +110,12 @@ pub fn render_bars(
         }
     }
 
-    let separators = std::iter::repeat("<br>|")
-        .take(lines.len() - 1)
-        .collect::<String>();
-    let separators = format!("|{}", separators);
+    let repeat_count = lines.len().saturating_sub(1);
+    let separators = if repeat_count == 0 {
+        "|".to_string()
+    } else {
+        format!("|{}","<br>|".repeat(repeat_count))
+    };
 
     let mut result = String::with_capacity(128);
     result.push_str("<span class=\"bars\">");

@@ -4,6 +4,7 @@ use std::cmp::max;
 use std::iter::{Chain, Repeat, Take, Zip};
 use std::slice::Iter;
 
+#[derive(Default)]
 pub struct CharPageSet<'a> {
     keyword_prefix: &'a str,
     keyword_suffix: &'a str,
@@ -15,14 +16,7 @@ pub struct CharPageSet<'a> {
 
 impl<'a> CharPageSet<'a> {
     pub fn new() -> Self {
-        Self {
-            keyword_prefix: "",
-            keyword_suffix: "",
-            text_prefix: "",
-            text_suffix: "",
-            chord_prefix: "",
-            chord_suffix: "",
-        }
+        Self::default()
     }
 
     pub fn keyword_prefix(mut self, keyword_prefix: &'a str) -> Self {
@@ -95,12 +89,14 @@ pub struct CharPage {
 
 impl CharPage {
     pub fn new(max_width: usize, max_height: usize) -> Self {
-        let mut char_page = Self::default();
-        char_page.max_width = max_width;
-        char_page.max_height = max_height;
-        return char_page;
+        Self {
+            max_width,
+            max_height,
+            ..Self::default()
+        }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn rows(
         &self,
     ) -> Take<
@@ -201,7 +197,7 @@ impl FormatCharPages for &Song {
                     .collect(),
             );
 
-            if lines.len() > 0 {
+            if !lines.is_empty() {
                 let mut new_char_page = CharPage::new(max_width, max_height);
                 new_char_page.try_add_lines(lines);
                 char_pages.push(new_char_page);

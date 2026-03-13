@@ -67,20 +67,18 @@ pub fn render_section(
             } else {
                 format!("{{repeat: {}}}", section.repeat_count)
             }
+        } else if section.repeat_count == 2 {
+            "{comment: (repeat)}".to_string()
         } else {
-            if section.repeat_count == 2 {
-                "{comment: (repeat)}".to_string()
-            } else {
-                format!("{{comment: (repeat {}x)}}", section.repeat_count)
-            }
+            format!("{{comment: (repeat {}x)}}", section.repeat_count)
         })
     } else {
         None
     };
 
     std::iter::once(keyword)
-        .chain(line_outputs.into_iter())
-        .chain(repeat_line.into_iter())
+        .chain(line_outputs)
+        .chain(repeat_line)
         .collect::<Vec<String>>()
         .join("\n")
 }

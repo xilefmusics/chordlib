@@ -10,7 +10,7 @@ impl FormatChordPro for &Song {
         language: Option<usize>,
         worship_pro_features: bool,
     ) -> String {
-        let self_key = self.key.clone().unwrap_or(SimpleChord::default()).into();
+        let self_key = self.key.clone().unwrap_or_default();
         let key = key.unwrap_or(&self_key);
 
         let separator = if worship_pro_features { ": " } else { ":" };
@@ -47,7 +47,7 @@ impl FormatChordPro for &Song {
         meta.push(format!(
             "{{key{}{}}}",
             separator,
-            SimpleChord::default().format(&key, &ChordRepresentation::default())
+            SimpleChord::default().format(key, &ChordRepresentation::Default)
         ));
 
         // Copyright (note: preserve existing field name typo for compatibility)

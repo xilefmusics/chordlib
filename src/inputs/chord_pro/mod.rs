@@ -68,14 +68,13 @@ where
     for line in content_lines.iter().copied() {
         let trimmed = line.trim_start();
 
-        if trimmed.starts_with('&') {
+        if let Some(rest) = trimmed.strip_prefix('&') {
             if parsed_lines.is_empty() {
                 return Err(Error::Parse(
                     "Worship Pro &-line cannot be the first line of a section".into(),
                 ));
             }
 
-            let rest = trimmed[1..].trim_start();
             let has_chords = rest.contains('[') && rest.contains(']');
 
             let last_line = parsed_lines
@@ -133,7 +132,8 @@ where
                     .max()
                     .unwrap_or(0);
 
-                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts.into_iter()) {
+                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts.into_iter())
+                {
                     if prev_part.languages.len() < new_lang_idx.saturating_add(1) {
                         prev_part
                             .languages
@@ -141,9 +141,9 @@ where
                     }
                     let text = new_part
                         .languages
-                        .get(0)
+                        .first()
                         .cloned()
-                        .unwrap_or_else(String::new);
+                        .unwrap_or_default();
                     prev_part.languages[new_lang_idx] = text;
                 }
             }
@@ -608,7 +608,7 @@ mod tests {
             "expected base parts plus free-translation part"
         );
         let base_part = &line.parts[0];
-        assert_eq!(base_part.languages.get(0).unwrap(), "Hallo");
+        assert_eq!(base_part.languages.first().unwrap(), "Hallo");
 
         let free_part = &line.parts[line.parts.len() - 1];
         assert!(free_part.chord.is_none());
@@ -626,9 +626,9 @@ mod tests {
         let song = load_string(input).expect("parse");
         let line = &song.sections[0].lines[0];
         assert_eq!(line.parts.len(), 2);
-        assert_eq!(line.parts[0].languages.get(0).unwrap(), "Hallo ");
+        assert_eq!(line.parts[0].languages.first().unwrap(), "Hallo ");
         assert_eq!(line.parts[0].languages.get(1).unwrap(), "Hello ");
-        assert_eq!(line.parts[1].languages.get(0).unwrap(), "Welt");
+        assert_eq!(line.parts[1].languages.first().unwrap(), "Welt");
         assert_eq!(line.parts[1].languages.get(1).unwrap(), "World");
     }
 
@@ -656,7 +656,7 @@ mod tests {
 "#;
         let song = load_string(input).expect("parse");
         let line = &song.sections[0].lines[0];
-        assert_eq!(line.parts[0].languages.get(0).unwrap(), "Hallo");
+        assert_eq!(line.parts[0].languages.first().unwrap(), "Hallo");
         assert_eq!(line.parts[0].languages.get(1).unwrap(), "Hello");
         assert_eq!(line.parts[0].languages.get(2).unwrap(), "Bonjour");
     }

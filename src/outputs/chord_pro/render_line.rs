@@ -72,7 +72,7 @@ fn append_chord_block(result: &mut String, chord: &str, chord_duration: u32, bar
 
     let base_width = 16 / (bar_duration / chord_duration).max(1) as usize;
     let spacing = base_width.saturating_sub(chord.chars().count() + 1);
-    result.extend(std::iter::repeat(' ').take(spacing));
+    result.extend(std::iter::repeat_n(' ', spacing));
 }
 
 impl FormatChordPro for &Line {

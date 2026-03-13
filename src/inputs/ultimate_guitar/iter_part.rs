@@ -42,18 +42,18 @@ impl<'a> Iterator for PartIterator<'a> {
         if let Some(mut content_chord) = self.content_chord {
             let old_content_chord = content_chord;
             let start = content_chord.find("[ch]")?;
-            if start > 0 {
-                if let Some(content_text) = self.content_text {
-                    let byte_index = content_text
-                        .chars()
-                        .take(start)
-                        .map(|b| b.len_utf8())
-                        .sum::<usize>();
-                    let text = &content_text[..byte_index];
-                    self.content_text = Some(&content_text[byte_index..]);
-                    self.content_chord = Some(&content_chord[start..]);
-                    return Some(("", text).try_into());
-                }
+            if start > 0
+                && let Some(content_text) = self.content_text
+            {
+                let byte_index = content_text
+                    .chars()
+                    .take(start)
+                    .map(|b| b.len_utf8())
+                    .sum::<usize>();
+                let text = &content_text[..byte_index];
+                self.content_text = Some(&content_text[byte_index..]);
+                self.content_chord = Some(&content_chord[start..]);
+                return Some(("", text).try_into());
             }
             content_chord = &content_chord[start + 4..];
             let end = content_chord.find("[/ch]")?;
@@ -62,7 +62,7 @@ impl<'a> Iterator for PartIterator<'a> {
             content_chord = &content_chord[next_start..];
             self.content_chord = Some(content_chord);
             if let Some(content_text) = self.content_text {
-                let text = if content_chord.len() > 0 {
+                let text = if !content_chord.is_empty() {
                     let char_index =
                         old_content_chord.chars().count() - content_chord.chars().count() - 9;
                     let byte_index = content_text
@@ -94,7 +94,7 @@ mod test {
 
     #[test]
     fn part_iterator() {
-        let inputs = vec![
+        let inputs = [
             "",
             "[ch]A[/ch]",
             "[ch]A[/ch] [ch]B[/ch]",
@@ -103,7 +103,7 @@ mod test {
             "    [ch]A[/ch]\nHey you",
             "Hello World",
         ];
-        let outputs = vec![
+        let outputs = [
             vec![("", "").try_into().unwrap()],
             vec![("A", "").try_into().unwrap()],
             vec![("A", "").try_into().unwrap(), ("B", "").try_into().unwrap()],

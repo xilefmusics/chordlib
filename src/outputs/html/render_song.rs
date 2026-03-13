@@ -16,19 +16,18 @@ impl FormatHTML for &Song {
             .key
             .as_ref()
             .unwrap_or(&SimpleChord::default())
-            .clone()
-            .into();
+            .clone();
         let key = key.unwrap_or(&self_key);
         let key_str = SimpleChord::default().format(key, &ChordRepresentation::Default);
 
         let selected_artist = self.artist_list().and_then(|list| {
             let idx = language;
-            if let Some(candidate) = list.get(idx) {
-                if !candidate.trim().is_empty() {
-                    return Some(candidate.clone());
-                }
+            if let Some(candidate) = list.get(idx)
+                && !candidate.trim().is_empty()
+            {
+                return Some(candidate.clone());
             }
-            list.get(0).cloned().filter(|s| !s.trim().is_empty())
+            list.first().cloned().filter(|s| !s.trim().is_empty())
         });
 
         let subtitle = match (
@@ -48,11 +47,11 @@ impl FormatHTML for &Song {
             .iter()
             .map(|section| {
                 render_section::render_section(
-                    &section,
+                    section,
                     key,
                     representation
                         .as_ref()
-                        .unwrap_or(&&ChordRepresentation::Default),
+                        .map_or(&ChordRepresentation::Default, |v| v),
                     language,
                     self.bar_duration(),
                     beats_per_bar,
@@ -93,6 +92,15 @@ impl FormatHTML for &Song {
         let (page, style) = self.format_html_page(key, representation, language, scale);
         wrap_html(&page, &style, self.title_for_language(language))
     }
+}
+
+pub fn wrap_html(html: &str, css: &str, title: &str) -> String {
+    HtmlTemplate::new()
+        .title(title)
+        .page(html)
+        .style(css)
+        .render()
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -186,13 +194,4 @@ mod tests {
         // No third artist specified, so it must fall back to the first artist.
         assert!(html_lang2.contains(r#"<h2 class="subtitle">Artist DE</h2>"#));
     }
-}
-
-pub fn wrap_html(html: &str, css: &str, title: &str) -> String {
-    HtmlTemplate::new()
-        .title(title)
-        .page(html)
-        .style(css)
-        .render()
-        .unwrap()
 }
