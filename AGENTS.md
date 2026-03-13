@@ -7,7 +7,7 @@ These rules are **mandatory** for any AI agent changing this repo.
 - **Tests pass**: Run `cargo test`.
   - If anything fails, either fix and re-run, or list failing tests and why they weren’t fixed.
 
-- **Clippy clean**: Run `cargo clippy --all-targets --all-features -- -D warnings`.
+- **Clippy clean**: Run `cargo clippy --all-features -- -D warnings`.
   - Code must build with **zero Clippy warnings**.
   - If some pre‑existing/externally caused warnings remain, minimize new ones and document what’s left and why.
 
@@ -27,6 +27,8 @@ These rules are **mandatory** for any AI agent changing this repo.
   - Where already used in this repo, prefer `cargo miri test` for `unsafe` and `cargo bench` (or project benchmarks) for perf‑critical changes. Avoid regressions.
 
 These extra tools are not required for every tiny change, but **never break existing CI/tooling** and prefer to run them when working in their area.
+
+GitHub Actions CI enforces these gates by running `cargo fmt --all -- --check`, `cargo clippy --all-features -- -D warnings`, and `cargo test` on every push and pull request targeting `main`.
 
 ### What every agent must report
 
