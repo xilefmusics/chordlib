@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 pub struct SectionIterator<'a> {
     title: &'a mut Option<String>,
     titles: &'a mut Option<Vec<String>>,
@@ -10,6 +12,7 @@ pub struct SectionIterator<'a> {
     languages: &'a mut Option<Vec<String>>,
     tempo: &'a mut Option<u32>,
     time: &'a mut Option<(u32, u32)>,
+    tags: &'a mut BTreeMap<String, String>,
     section_title_cache: Option<&'a str>,
     lines_cache: Vec<&'a str>,
     lines: std::str::Lines<'a>,
@@ -30,6 +33,7 @@ impl<'a> SectionIterator<'a> {
         languages: &'a mut Option<Vec<String>>,
         tempo: &'a mut Option<u32>,
         time: &'a mut Option<(u32, u32)>,
+        tags: &'a mut BTreeMap<String, String>,
     ) -> Self {
         Self {
             title,
@@ -43,6 +47,7 @@ impl<'a> SectionIterator<'a> {
             languages,
             tempo,
             time,
+            tags,
             section_title_cache: None,
             lines_cache: Vec::default(),
             lines: content.lines(),
@@ -126,6 +131,19 @@ impl<'a> Iterator for SectionIterator<'a> {
                         }
                     } else {
                         match key {
+                            "meta" => {
+                                let value_trimmed = value.trim();
+                                if let Some(space_pos) = value_trimmed.find(char::is_whitespace) {
+                                    let (name, val) = value_trimmed.split_at(space_pos);
+                                    let name = name.trim();
+                                    let val = val.trim();
+                                    if !name.is_empty() {
+                                        self.tags.insert(name.to_string(), val.to_string());
+                                    }
+                                } else if !value_trimmed.is_empty() {
+                                    self.tags.insert(value_trimmed.to_string(), String::new());
+                                }
+                            }
                             "subtitle" => *self.subtitle = Some(value.into()),
                             "copyright" => *self.copyright = Some(value.into()),
                             "key" => *self.key = Some(value.into()),

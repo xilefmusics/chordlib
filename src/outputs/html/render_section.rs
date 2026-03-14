@@ -115,6 +115,7 @@ mod tests {
             languages: None,
             tempo: None,
             time: None,
+            tags: Default::default(),
             sections: vec![section],
         }
     }
