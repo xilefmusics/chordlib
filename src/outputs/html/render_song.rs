@@ -40,6 +40,7 @@ impl FormatHTML for &Song {
 
         let beats_per_bar = self.beats_per_bar();
         let bar_duration = self.bar_duration();
+        let compact_six_eight = self.time == Some((6, 8));
         let display_title = self.title_for_language(Some(language));
         let page_template = self
             .sections
@@ -54,6 +55,7 @@ impl FormatHTML for &Song {
                     language,
                     bar_duration,
                     beats_per_bar,
+                    compact_six_eight,
                 )
             })
             .fold(
@@ -186,5 +188,24 @@ mod tests {
         assert!(html_lang2.contains(r#"<h1 class="title">Title DE</h1>"#));
         // No third artist specified, so it must fall back to the first artist.
         assert!(html_lang2.contains(r#"<h2 class="subtitle">Artist DE</h2>"#));
+    }
+
+    #[test]
+    fn html_six_eight_chord_only_line_uses_compact_bar_grid() {
+        let input = r#"{title: Six Eight}
+{key: C}
+{time: 6/8}
+{section: Prog}
+[C:6]
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+        let html = (&song).format_html(None, Some(&rep), None, None);
+
+        assert!(
+            html.contains("C /") && !html.contains("C / · ·"),
+            "expected compound 6/8 bar (chord + slash for second dotted quarter), got: {}",
+            html.chars().take(2000).collect::<String>()
+        );
     }
 }

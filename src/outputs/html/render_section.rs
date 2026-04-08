@@ -14,6 +14,7 @@ pub fn render_section(
     language: usize,
     bar_duration: u32,
     beats_per_bar: u32,
+    compact_six_eight: bool,
 ) -> String {
     let mut content = String::new();
     let mut chord_only_line_buffer = Vec::new();
@@ -29,6 +30,7 @@ pub fn render_section(
                     representation,
                     bar_duration,
                     beats_per_bar,
+                    compact_six_eight,
                 ));
                 chord_only_line_buffer.clear();
             }
@@ -48,6 +50,7 @@ pub fn render_section(
             representation,
             bar_duration,
             beats_per_bar,
+            compact_six_eight,
         ));
     }
 
