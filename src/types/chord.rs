@@ -326,9 +326,6 @@ impl Chord {
         }
     }
 
-    /// Parse duration after ':' as clicks (decimal `.` or locale-style `,`); returns milliclicks
-    /// (clicks * 1000). Thousands separators are not supported (only a single fractional
-    /// separator is intended).
     fn parse_duration(s: &str) -> Result<(Option<u32>, &str), Error> {
         if let Some((before, after)) = s.split_once(':') {
             let duration_token = after.trim().replace(',', ".");
@@ -431,8 +428,6 @@ mod test {
         }
     }
 
-    /// Duration is stored as milliclicks; format uses clicks (decimal allowed).
-    /// See https://github.com/xilefmusics/chordlib/issues/9
     #[test]
     fn chord_duration_milliclicks() {
         let c4 = Chord::from_str("C:4").unwrap();

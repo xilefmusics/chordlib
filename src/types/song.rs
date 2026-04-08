@@ -47,12 +47,22 @@ impl Song {
     /// Bar duration in milliclicks (1000 per click; one bar in 4/4 = 4000).
     pub fn bar_duration(&self) -> u32 {
         if let Some((numerator, denominator)) = self.time {
-            // Treat time signature as a number of quarter-note beats per bar:
-            // beats = numerator * 4 / denominator, then scale to milliclicks.
             1000 * numerator * 4 / denominator
         } else {
-            4000 // 4/4
+            4000
         }
+    }
+
+    pub fn beats_per_bar(&self) -> u32 {
+        self.time.map(|(n, _)| n).unwrap_or(4).max(1)
+    }
+
+    pub fn chord_duration_to_layout(&self, stored_millibeats: Option<u32>) -> u32 {
+        chord_duration_to_layout_milliclicks(
+            stored_millibeats,
+            self.bar_duration(),
+            self.beats_per_bar(),
+        )
     }
 
     /// Returns the most appropriate title for the given language index.
@@ -129,6 +139,19 @@ impl Song {
     }
 }
 
+pub fn chord_duration_to_layout_milliclicks(
+    stored_millibeats: Option<u32>,
+    bar_duration: u32,
+    beats_per_bar: u32,
+) -> u32 {
+    let beats = beats_per_bar.max(1) as u64;
+    let bar = bar_duration as u64;
+    match stored_millibeats {
+        None => bar_duration,
+        Some(mb) => (mb as u64 * bar / (beats * 1000)) as u32,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,6 +196,38 @@ mod tests {
 
         let song_default = Song::default();
         assert_eq!(song_default.bar_duration(), 4000);
+    }
+
+    #[test]
+    fn chord_duration_to_layout_respects_time_signature() {
+        let song_44 = Song {
+            time: Some((4, 4)),
+            ..Song::default()
+        };
+        assert_eq!(song_44.beats_per_bar(), 4);
+        assert_eq!(
+            chord_duration_to_layout_milliclicks(Some(1000), song_44.bar_duration(), 4),
+            1000,
+        );
+        assert_eq!(
+            chord_duration_to_layout_milliclicks(Some(1500), song_44.bar_duration(), 4),
+            1500
+        );
+
+        let song_68 = Song {
+            time: Some((6, 8)),
+            ..Song::default()
+        };
+        assert_eq!(song_68.beats_per_bar(), 6);
+        assert_eq!(song_68.bar_duration(), 3000);
+        assert_eq!(
+            chord_duration_to_layout_milliclicks(Some(1000), 3000, 6),
+            500,
+        );
+        assert_eq!(
+            chord_duration_to_layout_milliclicks(Some(500), 3000, 6),
+            250,
+        );
     }
 
     #[test]

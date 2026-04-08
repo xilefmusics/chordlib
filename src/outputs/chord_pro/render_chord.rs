@@ -14,12 +14,12 @@ impl FormatChordPro for &Chord {
             representation.unwrap_or(&ChordRepresentation::default()),
         );
 
-        if worship_pro_features && let Some(milliclicks) = self.get_duration() {
-            let clicks = milliclicks as f64 / 1000.0;
-            let duration_str = if (clicks - clicks.round()).abs() < f64::EPSILON {
-                format!("{:.0}", clicks)
+        if worship_pro_features && let Some(millibeats) = self.get_duration() {
+            let beats = millibeats as f64 / 1000.0;
+            let duration_str = if (beats - beats.round()).abs() < f64::EPSILON {
+                format!("{:.0}", beats)
             } else {
-                format!("{clicks}")
+                format!("{beats}")
             };
             return format!("{formatted}:{duration_str}");
         }

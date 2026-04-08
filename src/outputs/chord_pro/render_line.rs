@@ -1,5 +1,5 @@
 use super::FormatChordPro;
-use crate::types::{ChordRepresentation, Line, SimpleChord};
+use crate::types::{ChordRepresentation, Line, SimpleChord, chord_duration_to_layout_milliclicks};
 
 pub fn render_line(
     line: &Line,
@@ -8,6 +8,7 @@ pub fn render_line(
     language: Option<usize>,
     worship_pro_features: bool,
     bar_duration: u32,
+    beats_per_bar: u32,
 ) -> String {
     if worship_pro_features
         || line
@@ -22,7 +23,7 @@ pub fn render_line(
             .collect();
     }
 
-    let mut result = String::with_capacity(128); // preallocate to reduce reallocation
+    let mut result = String::with_capacity(128);
     let mut chord = String::new();
     let mut chord_duration = 0;
     let mut current_bar_duration = 0i32;
@@ -50,7 +51,9 @@ pub fn render_line(
         chord_duration = part
             .chord
             .as_ref()
-            .and_then(|c| c.get_duration())
+            .map(|c| {
+                chord_duration_to_layout_milliclicks(c.get_duration(), bar_duration, beats_per_bar)
+            })
             .unwrap_or(bar_duration);
 
         append_chord_block(&mut result, &chord, chord_duration, bar_duration);
@@ -89,7 +92,8 @@ impl FormatChordPro for &Line {
             representation,
             language,
             worship_pro_features,
-            4000, // default 4/4 bar in milliclicks
+            4000,
+            4,
         )
     }
 }
