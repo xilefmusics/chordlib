@@ -191,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn html_six_eight_chord_only_line_uses_compact_bar_grid() {
+    fn html_six_eight_chord_only_full_bar_is_single_chord_token() {
         let input = r#"{title: Six Eight}
 {key: C}
 {time: 6/8}
@@ -203,8 +203,13 @@ mod tests {
         let html = (&song).format_html(None, Some(&rep), None, None);
 
         assert!(
-            html.contains("C /") && !html.contains("C / · ·"),
-            "expected compound 6/8 bar (chord + slash for second dotted quarter), got: {}",
+            html.contains(r#"<span class="chord">C</span>"#),
+            "expected full-bar 6/8 chord-only cell to be a single C token, got: {}",
+            html.chars().take(2000).collect::<String>()
+        );
+        assert!(
+            !html.contains("C /"),
+            "full-bar chord should not use beat fillers (C /), got: {}",
             html.chars().take(2000).collect::<String>()
         );
     }
