@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.0] — HTML bars, chord parsing & layout
+
+### ✨ New features
+
+- **🎸 HTML 6/8 chord-only bars** — Compound-beat and two-eighth layouts for 6/8 time; continuation uses `/` or `·` when the second beat splits. (#37)
+- **🎸 HTML full-bar chords** — When one harmonic segment spans the full bar, render only the chord symbol (no per-beat `/` or `·` fillers). (#39)
+
+### 🐛 Fixes
+
+- **Chord duration in meter** — Interpret `:n` chord duration in meter beats consistently in layout. (#36)
+- **Locale decimals** — Accept comma as the decimal separator in chord duration tokens (normalized to a dot for parsing). (#35)
+- **Slash bass spelling** — Derive default slash-bass letter names from the root, semitone interval to the bass, and enharmonic tables (parsing still accepts `B#`, `E#`, `Cb`, `Fb`). (#34)
+
+### 🛠️ Other
+
+- **GitHub** — Bug and feature issue templates with structured fields. (#33)
+
+---
+
 ## [0.6.0] — Repeat, Nashville & tags
 
 Lots of improvements since 0.5.0: ChordPro repeat directives, Nashville number notation, custom metadata tags, multi-language content, better HTML bar rendering, and Worship Pro timing fixes. One breaking change: Ultimate Guitar is no longer fetched over HTTP by the crate (see migration below).
@@ -65,5 +84,6 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.7.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.7.0
 [0.6.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.6.0
 [0.5.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.5.0
