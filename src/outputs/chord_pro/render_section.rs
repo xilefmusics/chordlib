@@ -9,6 +9,7 @@ pub fn render_section(
     language: Option<usize>,
     worship_pro_features: bool,
     bar_duration: u32,
+    beats_per_bar: u32,
 ) -> String {
     let keyword = if worship_pro_features {
         format!("{{section: {}}}", section.title)
@@ -39,6 +40,7 @@ pub fn render_section(
                         Some(lang_idx),
                         worship_pro_features,
                         bar_duration,
+                        beats_per_bar,
                     );
                     if lang_idx == 0 {
                         line_outputs.push(rendered);
@@ -57,6 +59,7 @@ pub fn render_section(
             language,
             worship_pro_features,
             bar_duration,
+            beats_per_bar,
         ));
     }
 
@@ -97,7 +100,8 @@ impl FormatChordPro for &Section {
             representation,
             language,
             worship_pro_features,
-            4000, // default 4/4 bar in milliclicks
+            4000,
+            4,
         )
     }
 }

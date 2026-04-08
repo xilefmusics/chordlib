@@ -498,8 +498,6 @@ mod tests {
         assert!(r.is_err(), "{{key: 1}} must be rejected");
     }
 
-    /// Worship Pro duration: parse clicks (decimal) as milliclicks; round-trip.
-    /// See https://github.com/xilefmusics/chordlib/issues/9
     #[test]
     fn worship_pro_duration_roundtrip() {
         let input = r#"{title: Durations}
@@ -527,8 +525,8 @@ mod tests {
             None,
             true, // worship_pro
         );
-        assert!(out.contains("[C:4]"), "integer clicks");
-        assert!(out.contains("[Am:1.5]"), "decimal clicks");
+        assert!(out.contains("[C:4]"));
+        assert!(out.contains("[Am:1.5]"));
         let again = load_string(&out).expect("round-trip parse");
         let again_parts: Vec<_> = again.sections[0].lines[0]
             .parts

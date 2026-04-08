@@ -121,6 +121,7 @@ impl FormatChordPro for &Song {
                     language,
                     worship_pro_features,
                     self.bar_duration(),
+                    self.beats_per_bar(),
                 )
             }))
             .chain(std::iter::once("".to_string()))

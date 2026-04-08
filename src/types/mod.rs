@@ -12,4 +12,4 @@ pub use chord_simple::SimpleChord;
 pub use line::Line;
 pub use part::Part;
 pub use section::Section;
-pub use song::Song;
+pub use song::{Song, chord_duration_to_layout_milliclicks};

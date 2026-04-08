@@ -1,9 +1,5 @@
-use crate::types::{ChordRepresentation, Line, SimpleChord};
+use crate::types::{ChordRepresentation, Line, SimpleChord, chord_duration_to_layout_milliclicks};
 
-/// One symbol per beat:
-/// - chord name when a chord starts on that beat,
-/// - "/" when continuing the same chord for a full beat,
-/// - "·" when continuing the same chord for a shorter (fractional) beat.
 fn format_bar_beat_slashes(bar: &[(String, u32)], bar_duration: u32, beats_per_bar: u32) -> String {
     if beats_per_bar == 0 {
         return String::new();
@@ -12,12 +8,10 @@ fn format_bar_beat_slashes(bar: &[(String, u32)], bar_duration: u32, beats_per_b
     let beats_per_bar = beats_per_bar as usize;
     let beat_duration = bar_duration / beats_per_bar as u32;
 
-    // Pre‑allocate assuming a few characters per beat plus spaces.
     let mut out = String::with_capacity(beats_per_bar * 4);
 
     let mut prev_chord_idx: Option<usize> = None;
 
-    // Walk the bar segments once while we iterate over beats.
     let mut seg_idx = 0usize;
     let mut seg_end = bar.first().map(|(_, dur)| *dur).unwrap_or(0);
 
@@ -42,11 +36,8 @@ fn format_bar_beat_slashes(bar: &[(String, u32)], bar_duration: u32, beats_per_b
         }
 
         match (chord_idx, prev_chord_idx) {
-            // No chord covers this beat position.
             (None, _) => out.push('·'),
 
-            // Same chord as on the previous beat → continuation:
-            // "/" if at least a full beat of this chord remains, otherwise "·".
             (Some(idx), Some(prev)) if idx == prev => {
                 let remaining = seg_end.saturating_sub(pos);
                 if remaining >= beat_duration {
@@ -56,7 +47,6 @@ fn format_bar_beat_slashes(bar: &[(String, u32)], bar_duration: u32, beats_per_b
                 }
             }
 
-            // First sampled beat within this chord's span → show the chord name.
             (Some(idx), _) => {
                 prev_chord_idx = Some(idx);
                 out.push_str(&bar[idx].0);
@@ -86,7 +76,11 @@ pub fn render_bars(
             part.chord.as_ref().map(|chord| {
                 (
                     chord.format(key, representation).to_string(),
-                    chord.get_duration().unwrap_or(bar_duration),
+                    chord_duration_to_layout_milliclicks(
+                        chord.get_duration(),
+                        bar_duration,
+                        beats_per_bar,
+                    ),
                 )
             })
         }) {
@@ -160,26 +154,18 @@ mod tests {
         Line { parts }
     }
 
-    /// Chords whose durations are fractional beats (e.g. 1.5 + 2.5 beats)
-    /// must still show *both* chord names somewhere in the bar grid.
     #[test]
     fn bars_show_chords_starting_on_fractional_beats() {
-        // 4/4 time → 4 beats, 4000 milliclicks per bar.
         let bar_duration = 4000;
         let beats_per_bar = 4;
 
-        // First chord: C for 1.5 beats (1500 milliclicks),
-        // second chord: G for 2.5 beats (2500 milliclicks).
-        // Together they fill exactly one bar.
         let line = line_with_chords(&["C:1.5", "G:2.5"]);
 
-        // Use a concrete key / representation, matching other tests in this crate.
         let key: SimpleChord = "C".try_into().unwrap();
         let rep = ChordRepresentation::Default;
 
         let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar);
 
-        // Extract the rendered chord symbols for the (single) bar.
         let chord_span_start = html
             .find("<span class=\"chord\">")
             .expect("chord span start not found");
@@ -191,34 +177,95 @@ mod tests {
         let chord_text = &html[chord_span_start..chord_span_end];
 
         let tokens: Vec<&str> = chord_text.split_whitespace().collect();
-        assert_eq!(
-            tokens.len(),
-            beats_per_bar as usize,
-            "expected one symbol per beat; got: {chord_text}"
-        );
+        assert_eq!(tokens.len(), beats_per_bar as usize, "{chord_text}");
 
         let unique_chords: HashSet<&str> = tokens
             .iter()
             .copied()
             .filter(|t| *t != "·" && *t != "/")
             .collect();
-        assert_eq!(
-            unique_chords.len(),
-            2,
-            "fractional-beat chords must both appear somewhere in the bar grid; got: {chord_text}"
-        );
+        assert_eq!(unique_chords.len(), 2, "{chord_text}");
     }
 
-    /// Regression-style test with another pair of chords whose split point does
-    /// not coincide with integer beat positions, to ensure later chords are not
-    /// silently dropped.
+    #[test]
+    fn bars_six_eighth_one_beat_chords_fill_bar() {
+        let bar_duration = 3000;
+        let beats_per_bar = 6;
+        let line = line_with_chords(&["C:6"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar);
+
+        let chord_span_start = html
+            .find("<span class=\"chord\">")
+            .expect("chord span start not found");
+        let chord_span_start = chord_span_start + "<span class=\"chord\">".len();
+        let chord_span_end = html[chord_span_start..]
+            .find("</span>")
+            .expect("chord span end not found")
+            + chord_span_start;
+        let chord_text = &html[chord_span_start..chord_span_end];
+        let tokens: Vec<&str> = chord_text.split_whitespace().collect();
+        assert_eq!(tokens, vec!["C", "/", "/", "/", "/", "/"], "{chord_text}");
+    }
+
+    #[test]
+    fn bars_common_time_one_beat_per_slot() {
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:4"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar);
+
+        let chord_span_start = html
+            .find("<span class=\"chord\">")
+            .expect("chord span start not found");
+        let chord_span_start = chord_span_start + "<span class=\"chord\">".len();
+        let chord_span_end = html[chord_span_start..]
+            .find("</span>")
+            .expect("chord span end not found")
+            + chord_span_start;
+        let chord_text = &html[chord_span_start..chord_span_end];
+        let tokens: Vec<&str> = chord_text.split_whitespace().collect();
+        assert_eq!(tokens, vec!["C", "/", "/", "/"], "{chord_text}");
+    }
+
+    #[test]
+    fn bars_six_eighth_alternating_one_beat_chords_show_both() {
+        let bar_duration = 3000;
+        let beats_per_bar = 6;
+        let line = line_with_chords(&["C:1", "G:1", "C:1", "G:1", "C:1", "G:1"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar);
+
+        let chord_span_start = html
+            .find("<span class=\"chord\">")
+            .expect("chord span start not found");
+        let chord_span_start = chord_span_start + "<span class=\"chord\">".len();
+        let chord_span_end = html[chord_span_start..]
+            .find("</span>")
+            .expect("chord span end not found")
+            + chord_span_start;
+        let chord_text = &html[chord_span_start..chord_span_end];
+
+        let tokens: Vec<&str> = chord_text.split_whitespace().collect();
+        assert_eq!(tokens.len(), 6, "{chord_text}");
+
+        let unique_chords: HashSet<&str> = tokens
+            .iter()
+            .copied()
+            .filter(|t| *t != "·" && *t != "/")
+            .collect();
+        assert_eq!(unique_chords.len(), 2, "{chord_text}");
+    }
+
     #[test]
     fn bars_do_not_drop_late_fractional_chord() {
         let bar_duration = 4000;
         let beats_per_bar = 4;
 
-        // Two chords that together fill the bar, with the *second* starting on a
-        // non-integer beat. Any reasonable rendering should show both "D" and "E".
         let line = line_with_chords(&["D:1.5", "E:2.5"]);
 
         let key: SimpleChord = "D".try_into().unwrap();
@@ -242,9 +289,6 @@ mod tests {
             .copied()
             .filter(|t| *t != "·" && *t != "/")
             .collect();
-        assert!(
-            unique_chords.len() >= 2,
-            "bar rendering must not drop later fractional chords; got: {chord_text}"
-        );
+        assert!(unique_chords.len() >= 2, "{chord_text}");
     }
 }

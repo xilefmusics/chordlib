@@ -38,7 +38,7 @@ impl FormatHTML for &Song {
             (None, None) => String::new(),
         };
 
-        let beats_per_bar = self.time.map(|(n, _)| n).unwrap_or(4);
+        let beats_per_bar = self.beats_per_bar();
         let bar_duration = self.bar_duration();
         let display_title = self.title_for_language(Some(language));
         let page_template = self

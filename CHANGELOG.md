@@ -17,6 +17,7 @@ Lots of improvements since 0.5.0: ChordPro repeat directives, Nashville number n
 
 ### 🐛 Fixes
 
+- **Chord duration in compound meter** — `:n` on chords is interpreted as **notated beats** (denominator of the time signature), so in 6/8 a `:1` chord spans one eighth-note column in HTML/SVG bar grids; 4/4 behavior is unchanged. (#30)
 - **Ultimate Guitar import** — First section is no longer dropped when it has a section title (e.g. `[Verse 1]`). (#20)
 - **Worship Pro export** — Repeat directives are preserved on export. (#23)
 - **ChordPro import** — CCLI repeat markers `[||:]` and `[:||]` are stripped so import succeeds. (#6)
