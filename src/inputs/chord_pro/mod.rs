@@ -298,6 +298,41 @@ mod tests {
         assert_eq!(song.sections[0].repeat_count, 1);
     }
 
+    #[test]
+    fn chordpro_preserves_enharmonic_slash_bass() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[G#/B#]Lyric
+"#;
+        let song = load_string(input).expect("parse");
+        use crate::outputs::FormatChordPro;
+        let out = (&song).format_chord_pro(None, Some(&ChordRepresentation::Default), None, false);
+        assert!(
+            out.contains("[G#/B#]"),
+            "expected G#/B# in export, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn chordpro_parse_line_with_many_slash_chords() {
+        let input = r#"{title: Slash line}
+{key: C}
+{section: Verse}
+[C/G][D/F#][G/B][Am/E][F/Cb][E/G][Bb/D]Lyrics here
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.sections.len(), 1);
+        assert_eq!(song.sections[0].lines.len(), 1);
+        assert_eq!(song.sections[0].lines[0].parts.len(), 7);
+        use crate::outputs::FormatChordPro;
+        let out = (&song).format_chord_pro(None, Some(&ChordRepresentation::Default), None, false);
+        assert!(
+            out.contains("Verse") && out.contains("Lyrics here"),
+            "unexpected export:\n{out}"
+        );
+    }
+
     /// Worship Pro export keeps {repeat} / {repeat: N}; ChordPro export uses {comment: (repeat)}.
     #[test]
     fn repeat_export_worship_pro_and_chord_pro() {
