@@ -505,7 +505,7 @@ mod tests {
         let input = r#"{title: Durations}
 {key: C}
 {section: Verse}
-[C:4][Am:1.5][G:2][F:1]
+[C:4][Am:1,5][G:2][F:1]
 "#;
         let song = load_string(input).expect("parse");
         assert_eq!(song.sections.len(), 1);

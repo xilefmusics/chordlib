@@ -326,11 +326,13 @@ impl Chord {
         }
     }
 
-    /// Parse duration after ':' as clicks (decimal allowed); returns milliclicks (clicks * 1000).
+    /// Parse duration after ':' as clicks (decimal `.` or locale-style `,`); returns milliclicks
+    /// (clicks * 1000). Thousands separators are not supported (only a single fractional
+    /// separator is intended).
     fn parse_duration(s: &str) -> Result<(Option<u32>, &str), Error> {
         if let Some((before, after)) = s.split_once(':') {
-            let clicks: f64 = after
-                .trim()
+            let duration_token = after.trim().replace(',', ".");
+            let clicks: f64 = duration_token
                 .parse()
                 .map_err(|_| Error::Parse("failed to parse the duration".into()))?;
             let milliclicks = (clicks * 1000.0).round().max(0.0) as u32;
@@ -445,6 +447,17 @@ mod test {
 
         let g_2_25 = Chord::from_str("G:2.25").unwrap();
         assert_eq!(g_2_25.get_duration(), Some(2250));
+
+        // Locale-style decimal comma (same values as dot form). See issue #29.
+        let am_1_5_comma = Chord::from_str("Am:1,5").unwrap();
+        assert_eq!(am_1_5_comma.get_duration(), Some(1500));
+
+        let g_2_25_comma = Chord::from_str("G:2,25").unwrap();
+        assert_eq!(g_2_25_comma.get_duration(), Some(2250));
+
+        let paren_comma = Chord::from_str("(C:1,25)").unwrap();
+        assert!(paren_comma.optional);
+        assert_eq!(paren_comma.get_duration(), Some(1250));
     }
 
     #[test]
