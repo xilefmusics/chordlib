@@ -249,8 +249,8 @@ impl Chord {
             optional_start,
             self.main.format(key, representation),
             self.kind.format(),
-            slash.unwrap_or_default(),
             self.var,
+            slash.unwrap_or_default(),
             optional_end,
         )
     }
@@ -453,6 +453,32 @@ mod test {
         let paren_comma = Chord::from_str("(C:1,25)").unwrap();
         assert!(paren_comma.optional);
         assert_eq!(paren_comma.get_duration(), Some(1250));
+    }
+
+    #[test]
+    fn slash_chord_var_before_bass_issue_40() {
+        let key_a = SimpleChord::default();
+        assert_default("C4/E", &key_a, "C4/E");
+        assert_default("Cm7/E", &key_a, "Cm7/E");
+        assert_default("Cadd9/E", &key_a, "Cadd9/E");
+
+        // `{ key: C }` uses combined pitch + key for slash spelling (see `slash_bass_song_key_c`);
+        // extensions must still precede the slash bass.
+        let key_c = SimpleChord::try_from("C").unwrap();
+        assert_default("C4/E", &key_c, "D#4/G");
+        assert_default("Cm7/E", &key_c, "D#m7/G");
+        assert_default("Cadd9/E", &key_c, "D#add9/G");
+    }
+
+    #[test]
+    fn slash_chord_var_before_bass_nashville() {
+        let key = SimpleChord::default();
+        let c = Chord::from_str("C4/E").unwrap();
+        assert_eq!(
+            c.format(&key, &ChordRepresentation::Nashville),
+            "b34/5",
+            "upper-structure suffix precedes slash bass in Nashville"
+        );
     }
 
     #[test]
