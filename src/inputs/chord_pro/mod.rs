@@ -162,29 +162,23 @@ pub fn load(path: &str) -> Result<Song, Error> {
 }
 
 pub fn load_string(input: &str) -> Result<Song, Error> {
-    let mut title = None;
-    let mut titles = None;
+    let mut titles = Vec::new();
     let mut subtitle = None;
     let mut copyright = None;
     let mut key = None;
-    let mut artist = None;
-    let mut artists = None;
-    let mut language = None;
-    let mut languages = None;
+    let mut artists = Vec::new();
+    let mut languages = Vec::new();
     let mut tempo = None;
     let mut time = None;
     let mut tags = BTreeMap::new();
 
     let sections = SectionIterator::new(
         input,
-        &mut title,
         &mut titles,
         &mut subtitle,
         &mut copyright,
         &mut key,
-        &mut artist,
         &mut artists,
-        &mut language,
         &mut languages,
         &mut tempo,
         &mut time,
@@ -224,16 +218,15 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     }
     let key_simple: SimpleChord = key_str.try_into()?;
 
-    let title = title.ok_or(Error::Parse("no title given".into()))?;
+    if !titles.iter().any(|t| !t.is_empty()) {
+        return Err(Error::Parse("no title given".into()));
+    }
     Ok(Song {
-        title,
         titles,
         subtitle,
         copyright,
         key: Some(key_simple),
-        artist,
         artists,
-        language,
         languages,
         tempo,
         time,
@@ -434,7 +427,7 @@ mod tests {
 [||:][G][C][D][ :||]
 "#;
         let song = load_string(input).expect("import must not fail on repeat markers");
-        assert_eq!(song.title.as_str(), "Test");
+        assert_eq!(song.title(), "Test");
         assert_eq!(song.sections.len(), 1);
         assert_eq!(song.sections[0].lines.len(), 1);
 
@@ -548,7 +541,7 @@ mod tests {
 [C]Line
 "#;
         let song = load_string(input).expect("parse");
-        assert_eq!(song.language.as_deref(), Some("en"));
+        assert_eq!(song.language(), "en");
         let langs = song.language_list().expect("language list");
         assert_eq!(langs, vec!["en", "de", "fr"]);
     }
@@ -564,16 +557,14 @@ mod tests {
 [C]Line
 "#;
         let song = load_string(input).expect("parse");
-        assert_eq!(song.artist.as_deref(), Some("First Artist"));
+        assert_eq!(song.artist(), "First Artist");
         assert_eq!(
-            song.artists.as_deref(),
-            Some(
-                &[
-                    "First Artist".to_string(),
-                    "Second Artist".to_string(),
-                    "Third Artist".to_string()
-                ][..]
-            )
+            song.artists,
+            vec![
+                "First Artist".to_string(),
+                "Second Artist".to_string(),
+                "Third Artist".to_string()
+            ]
         );
         let artist_list = song.artist_list().expect("artist list");
         assert_eq!(
@@ -590,11 +581,8 @@ mod tests {
 [C]Line
 "#;
         let song_single = load_string(input_single).expect("parse single");
-        assert_eq!(song_single.title, "My Song Title");
-        assert_eq!(
-            song_single.titles.as_deref(),
-            Some(&["My Song Title".to_string()][..])
-        );
+        assert_eq!(song_single.title(), "My Song Title");
+        assert_eq!(song_single.titles, vec!["My Song Title".to_string()]);
 
         let input_multi = r#"{title: Main}
 {title2: "Secondary Title"}
@@ -603,10 +591,10 @@ mod tests {
 [C]Line
 "#;
         let song_multi = load_string(input_multi).expect("parse multi");
-        assert_eq!(song_multi.title, "Main");
+        assert_eq!(song_multi.title(), "Main");
         assert_eq!(
-            song_multi.titles.as_deref(),
-            Some(&["Main".to_string(), "Secondary Title".to_string()][..])
+            song_multi.titles,
+            vec!["Main".to_string(), "Secondary Title".to_string()]
         );
         // Language-aware helper should pick the second title for language index 1
         // and fall back to the primary for out-of-range indices.

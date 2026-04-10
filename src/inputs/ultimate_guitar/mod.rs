@@ -100,15 +100,12 @@ pub fn load_string(content: &str, title: &str, artist: &str, key: &str) -> Resul
     sections.extend(rest);
 
     Ok(Song {
-        title: title.into(),
-        titles: None,
+        titles: vec![title.into()],
         subtitle: None,  // TODO: parse subtitle
         copyright: None, // TODO: parse copyright
         key: Some(SimpleChord::guess_key(key)),
-        artist: Some(artist.into()),
-        artists: None,
-        language: None, // TODO: parse language
-        languages: None,
+        artists: vec![artist.into()],
+        languages: vec![],
         tempo,
         time,
         tags: Default::default(),
@@ -158,8 +155,8 @@ mod tests {
     fn load_html_parses_fixture_ug_page() {
         let html = fixture_html_with_store();
         let song = load_html(&html).expect("load_html should parse fixture");
-        assert_eq!(song.title.as_str(), "Test Song");
-        assert_eq!(song.artist.as_deref(), Some("Test Artist"));
+        assert_eq!(song.title(), "Test Song");
+        assert_eq!(song.artist(), "Test Artist");
         assert_eq!(song.sections.len(), 1);
         assert_eq!(song.sections[0].title.as_str(), "Verse 1");
         assert_eq!(song.sections[0].lines.len(), 1);

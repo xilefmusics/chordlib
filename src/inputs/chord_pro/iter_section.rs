@@ -1,15 +1,12 @@
 use std::collections::BTreeMap;
 
 pub struct SectionIterator<'a> {
-    title: &'a mut Option<String>,
-    titles: &'a mut Option<Vec<String>>,
+    titles: &'a mut Vec<String>,
     subtitle: &'a mut Option<String>,
     copyright: &'a mut Option<String>,
     key: &'a mut Option<String>,
-    artist: &'a mut Option<String>,
-    artists: &'a mut Option<Vec<String>>,
-    language: &'a mut Option<String>,
-    languages: &'a mut Option<Vec<String>>,
+    artists: &'a mut Vec<String>,
+    languages: &'a mut Vec<String>,
     tempo: &'a mut Option<u32>,
     time: &'a mut Option<(u32, u32)>,
     tags: &'a mut BTreeMap<String, String>,
@@ -22,28 +19,22 @@ impl<'a> SectionIterator<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         content: &'a str,
-        title: &'a mut Option<String>,
-        titles: &'a mut Option<Vec<String>>,
+        titles: &'a mut Vec<String>,
         subtitle: &'a mut Option<String>,
         copyright: &'a mut Option<String>,
         key: &'a mut Option<String>,
-        artist: &'a mut Option<String>,
-        artists: &'a mut Option<Vec<String>>,
-        language: &'a mut Option<String>,
-        languages: &'a mut Option<Vec<String>>,
+        artists: &'a mut Vec<String>,
+        languages: &'a mut Vec<String>,
         tempo: &'a mut Option<u32>,
         time: &'a mut Option<(u32, u32)>,
         tags: &'a mut BTreeMap<String, String>,
     ) -> Self {
         Self {
-            title,
             titles,
             subtitle,
             copyright,
             key,
-            artist,
             artists,
-            language,
             languages,
             tempo,
             time,
@@ -101,34 +92,22 @@ impl<'a> Iterator for SectionIterator<'a> {
                     // Handle indexed metadata directives: title/titleN, language/languageN, artist/artistN.
                     if let Some(idx) = Self::parse_indexed_key(key, "title") {
                         let title_val = Self::parse_simple_value(value);
-                        let titles_vec = self.titles.get_or_insert_with(Vec::new);
-                        if titles_vec.len() <= idx {
-                            titles_vec.resize(idx + 1, String::new());
+                        if self.titles.len() <= idx {
+                            self.titles.resize(idx + 1, String::new());
                         }
-                        titles_vec[idx] = title_val.clone();
-                        if idx == 0 || self.title.is_none() {
-                            *self.title = Some(title_val);
-                        }
+                        self.titles[idx] = title_val;
                     } else if let Some(idx) = Self::parse_indexed_key(key, "language") {
                         let lang_val = Self::parse_simple_value(value);
-                        let langs_vec = self.languages.get_or_insert_with(Vec::new);
-                        if langs_vec.len() <= idx {
-                            langs_vec.resize(idx + 1, String::new());
+                        if self.languages.len() <= idx {
+                            self.languages.resize(idx + 1, String::new());
                         }
-                        langs_vec[idx] = lang_val.clone();
-                        if idx == 0 || self.language.is_none() {
-                            *self.language = Some(lang_val);
-                        }
+                        self.languages[idx] = lang_val;
                     } else if let Some(idx) = Self::parse_indexed_key(key, "artist") {
                         let artist_val = Self::parse_simple_value(value);
-                        let artists_vec = self.artists.get_or_insert_with(Vec::new);
-                        if artists_vec.len() <= idx {
-                            artists_vec.resize(idx + 1, String::new());
+                        if self.artists.len() <= idx {
+                            self.artists.resize(idx + 1, String::new());
                         }
-                        artists_vec[idx] = artist_val.clone();
-                        if idx == 0 || self.artist.is_none() {
-                            *self.artist = Some(artist_val);
-                        }
+                        self.artists[idx] = artist_val;
                     } else {
                         match key {
                             "meta" => {

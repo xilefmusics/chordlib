@@ -19,23 +19,24 @@ impl FormatChordPro for &Song {
 
         // Title(s)
         if worship_pro_features {
-            if let Some(titles) = &self.titles {
-                for (idx, title) in titles.iter().enumerate() {
-                    if title.is_empty() {
-                        continue;
-                    }
-                    let key = if idx == 0 {
-                        "title".to_string()
-                    } else {
-                        format!("title{}", idx + 1)
-                    };
-                    meta.push(format!("{{{}{}{}}}", key, separator, title));
+            let mut any = false;
+            for (idx, title) in self.titles.iter().enumerate() {
+                if title.is_empty() {
+                    continue;
                 }
-            } else {
-                meta.push(format!("{{title{}{}}}", separator, self.title));
+                any = true;
+                let key = if idx == 0 {
+                    "title".to_string()
+                } else {
+                    format!("title{}", idx + 1)
+                };
+                meta.push(format!("{{{}{}{}}}", key, separator, title));
+            }
+            if !any {
+                meta.push(format!("{{title{}{}}}", separator, self.title()));
             }
         } else {
-            meta.push(format!("{{title{}{}}}", separator, self.title));
+            meta.push(format!("{{title{}{}}}", separator, self.title()));
         }
 
         // Subtitle
@@ -57,44 +58,36 @@ impl FormatChordPro for &Song {
 
         // Artist(s)
         if worship_pro_features {
-            if let Some(artists) = &self.artists {
-                for (idx, artist) in artists.iter().enumerate() {
-                    if artist.is_empty() {
-                        continue;
-                    }
-                    let key = if idx == 0 {
-                        "artist".to_string()
-                    } else {
-                        format!("artist{}", idx + 1)
-                    };
-                    meta.push(format!("{{{}{}{}}}", key, separator, artist));
+            for (idx, artist) in self.artists.iter().enumerate() {
+                if artist.is_empty() {
+                    continue;
                 }
-            } else if let Some(artist) = &self.artist {
-                meta.push(format!("{{artist{}{}}}", separator, artist));
+                let key = if idx == 0 {
+                    "artist".to_string()
+                } else {
+                    format!("artist{}", idx + 1)
+                };
+                meta.push(format!("{{{}{}{}}}", key, separator, artist));
             }
-        } else if let Some(artist) = &self.artist {
-            meta.push(format!("{{artist{}{}}}", separator, artist));
+        } else if !self.artist().is_empty() {
+            meta.push(format!("{{artist{}{}}}", separator, self.artist()));
         }
 
         // Language(s)
         if worship_pro_features {
-            if let Some(langs) = &self.languages {
-                for (idx, lang) in langs.iter().enumerate() {
-                    if lang.is_empty() {
-                        continue;
-                    }
-                    let key = if idx == 0 {
-                        "language".to_string()
-                    } else {
-                        format!("language{}", idx + 1)
-                    };
-                    meta.push(format!("{{{}{}{}}}", key, separator, lang));
+            for (idx, lang) in self.languages.iter().enumerate() {
+                if lang.is_empty() {
+                    continue;
                 }
-            } else if let Some(language) = &self.language {
-                meta.push(format!("{{language{}{}}}", separator, language));
+                let key = if idx == 0 {
+                    "language".to_string()
+                } else {
+                    format!("language{}", idx + 1)
+                };
+                meta.push(format!("{{{}{}{}}}", key, separator, lang));
             }
-        } else if let Some(language) = &self.language {
-            meta.push(format!("{{language{}{}}}", separator, language));
+        } else if !self.language().is_empty() {
+            meta.push(format!("{{language{}{}}}", separator, self.language()));
         }
 
         // Tempo & time
