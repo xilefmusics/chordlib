@@ -30,15 +30,26 @@ fn build_bar_symbols(bar: &[(String, u32)], bar_duration: u32, beats_per_bar: u3
 
         let chord_idx = if seg_idx < bar.len() {
             Some(seg_idx)
+        } else if !bar.is_empty() && pos < bar_duration {
+            // Explicit segments ended before the bar end; the last chord holds through `bar_duration`.
+            Some(bar.len() - 1)
         } else {
             None
+        };
+
+        let chord_end_exclusive = if seg_idx < bar.len() {
+            seg_end
+        } else if chord_idx.is_some() {
+            bar_duration
+        } else {
+            0
         };
 
         match (chord_idx, prev_chord_idx) {
             (None, _) => syms.push(BarSym::Dot),
 
             (Some(idx), Some(prev)) if idx == prev => {
-                let remaining = seg_end.saturating_sub(pos);
+                let remaining = chord_end_exclusive.saturating_sub(pos);
                 if remaining >= beat_duration {
                     syms.push(BarSym::Slash);
                 } else {
@@ -451,6 +462,19 @@ mod tests {
 
         let tokens = chord_tokens(&html);
         assert_eq!(tokens, vec!["C"], "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_common_time_two_one_beat_chords_tail_beats_slash_continuation() {
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:1", "G:1"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "G", "/", "/"], "{tokens:?}");
     }
 
     #[test]
