@@ -6,20 +6,18 @@ use super::{Section, SimpleChord};
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Song {
-    /// Primary title of the song (typically the first title in the `{title: ...}` directive).
-    pub title: String,
-    /// Optional list of titles for different languages, in the same order as the `{language: ...}` directive.
-    /// When present, index 0 should always match `title`.
-    pub titles: Option<Vec<String>>,
+    /// Titles from `{title}` / `{titleN}`; index 0 is the primary (`title()`).
+    #[serde(default)]
+    pub titles: Vec<String>,
     pub subtitle: Option<String>,
     pub copyright: Option<String>,
     pub key: Option<SimpleChord>,
-    pub artist: Option<String>,
-    /// Optional list of artists; when present, index 0 should usually match `artist`.
-    pub artists: Option<Vec<String>>,
-    pub language: Option<String>,
-    /// Optional list of language codes; when present, index 0 should usually match `language`.
-    pub languages: Option<Vec<String>>,
+    /// Artists from `{artist}` / `{artistN}`; index 0 is the primary (`artist()`).
+    #[serde(default)]
+    pub artists: Vec<String>,
+    /// Language codes from `{language}` / `{languageN}`; index 0 is the primary (`language()`).
+    #[serde(default)]
+    pub languages: Vec<String>,
     pub tempo: Option<u32>,
     pub time: Option<(u32, u32)>,
     /// Custom tags (e.g. scripture, hymn_type) from ChordPro `{meta: name value}`.
@@ -30,6 +28,21 @@ pub struct Song {
 }
 
 impl Song {
+    /// Primary title: first entry in `titles`, or empty when the vector is empty.
+    pub fn title(&self) -> &str {
+        self.titles.first().map(String::as_str).unwrap_or("")
+    }
+
+    /// Primary artist: first entry in `artists`, or empty when the vector is empty.
+    pub fn artist(&self) -> &str {
+        self.artists.first().map(String::as_str).unwrap_or("")
+    }
+
+    /// Primary language code: first entry in `languages`, or empty when the vector is empty.
+    pub fn language(&self) -> &str {
+        self.languages.first().map(String::as_str).unwrap_or("")
+    }
+
     pub fn transpose(&mut self, key: SimpleChord) -> &mut Self {
         self.key = Some(key);
         self
@@ -69,16 +82,15 @@ impl Song {
     ///
     /// If `language` is `Some(idx)` and `self.titles` contains a non-empty
     /// title at that index, that title is returned. Otherwise, this falls
-    /// back to the primary `self.title`.
+    /// back to the primary `title()`.
     pub fn title_for_language(&self, language: Option<usize>) -> &str {
         let idx = language.unwrap_or(0);
-        if let Some(titles) = &self.titles
-            && let Some(candidate) = titles.get(idx)
+        if let Some(candidate) = self.titles.get(idx)
             && !candidate.is_empty()
         {
             return candidate;
         }
-        &self.title
+        self.title()
     }
 
     pub fn move_chords_to_next_vowels(mut self) -> Self {
@@ -99,43 +111,31 @@ impl Song {
         self
     }
 
-    /// Returns a slice of artists, preferring the structured `artists` field when present.
+    /// Returns a slice of artists when `artists` is non-empty.
     pub fn artist_slice(&self) -> Option<&[String]> {
-        if let Some(artists) = &self.artists {
-            if artists.is_empty() {
-                return None;
-            }
-            return Some(artists.as_slice());
+        if self.artists.is_empty() {
+            None
+        } else {
+            Some(self.artists.as_slice())
         }
-        self.artist.as_ref().map(std::slice::from_ref)
     }
 
+    /// Returns a clone of language codes when `languages` is non-empty.
     pub fn language_list(&self) -> Option<Vec<String>> {
-        if let Some(langs) = &self.languages {
-            if langs.is_empty() {
-                return None;
-            }
-            return Some(langs.clone());
+        if self.languages.is_empty() {
+            None
+        } else {
+            Some(self.languages.clone())
         }
-
-        self.language.as_ref().map(|langs| {
-            langs
-                .split_whitespace()
-                .filter(|s| !s.is_empty())
-                .map(|s| s.to_string())
-                .collect()
-        })
     }
 
-    /// Returns a list of artists, preferring the structured `artists` field when present.
+    /// Returns a clone of artists when `artists` is non-empty.
     pub fn artist_list(&self) -> Option<Vec<String>> {
-        if let Some(artists) = &self.artists {
-            if artists.is_empty() {
-                return None;
-            }
-            return Some(artists.clone());
+        if self.artists.is_empty() {
+            None
+        } else {
+            Some(self.artists.clone())
         }
-        self.artist.as_ref().map(|a| vec![a.clone()])
     }
 }
 
@@ -155,6 +155,23 @@ pub fn chord_duration_to_layout_milliclicks(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn primary_getters_return_empty_when_vectors_empty() {
+        let song = Song::default();
+        assert_eq!(song.title(), "");
+        assert_eq!(song.artist(), "");
+        assert_eq!(song.language(), "");
+    }
+
+    #[test]
+    fn serde_missing_metadata_vectors_default_empty() {
+        let json = r#"{"sections":[]}"#;
+        let s: Song = serde_json::from_str(json).unwrap();
+        assert!(s.titles.is_empty());
+        assert!(s.artists.is_empty());
+        assert!(s.languages.is_empty());
+    }
 
     #[test]
     fn bar_duration_milliclicks() {
@@ -231,10 +248,15 @@ mod tests {
     }
 
     #[test]
-    fn language_list_prefers_structured_languages() {
+    fn language_list_returns_none_when_empty() {
+        let song = Song::default();
+        assert!(song.language_list().is_none());
+    }
+
+    #[test]
+    fn language_list_clones_non_empty_languages() {
         let song = Song {
-            language: Some("legacy should be ignored when vector present".to_string()),
-            languages: Some(vec!["en".to_string(), "de".to_string(), "fr".to_string()]),
+            languages: vec!["en".to_string(), "de".to_string(), "fr".to_string()],
             ..Song::default()
         };
         let langs = song.language_list().expect("language list");
@@ -244,12 +266,11 @@ mod tests {
     #[test]
     fn title_for_language_prefers_titles_vector_and_falls_back() {
         let song = Song {
-            title: "Primary".to_string(),
-            titles: Some(vec![
+            titles: vec![
                 "Primary".to_string(),
                 "Secondary".to_string(),
                 String::new(),
-            ]),
+            ],
             ..Song::default()
         };
 
@@ -261,5 +282,15 @@ mod tests {
         // Out-of-range or empty entries fall back to primary.
         assert_eq!(song.title_for_language(Some(2)), "Primary");
         assert_eq!(song.title_for_language(Some(10)), "Primary");
+    }
+
+    #[test]
+    fn title_for_language_falls_back_when_primary_slot_empty() {
+        let song = Song {
+            titles: vec![String::new(), "OnlySecond".to_string()],
+            ..Song::default()
+        };
+        assert_eq!(song.title_for_language(None), "");
+        assert_eq!(song.title_for_language(Some(1)), "OnlySecond");
     }
 }

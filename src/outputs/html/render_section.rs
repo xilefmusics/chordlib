@@ -107,15 +107,12 @@ mod tests {
         };
 
         Song {
-            title: "Test".to_string(),
-            titles: None,
+            titles: vec!["Test".to_string()],
             subtitle: None,
             copyright: None,
             key: Some(SimpleChord::default()),
-            artist: None,
-            artists: None,
-            language: None,
-            languages: None,
+            artists: vec![],
+            languages: vec![],
             tempo: None,
             time: None,
             tags: Default::default(),
