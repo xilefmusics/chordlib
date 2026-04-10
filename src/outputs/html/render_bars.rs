@@ -7,6 +7,28 @@ enum BarSym {
     Dot,
 }
 
+/// Full-bar partition (`sum == bar_duration`) with two or more segments that all share the same
+/// duration: emit chord names only, space-separated (no `/` or `·`). See issue #43.
+fn try_format_equal_duration_segments(bar: &[(String, u32)], bar_duration: u32) -> Option<String> {
+    if bar.len() <= 1 {
+        return None;
+    }
+    let d0 = bar[0].1;
+    if !bar.iter().all(|(_, d)| *d == d0) {
+        return None;
+    }
+    let sum: u32 = bar.iter().map(|(_, d)| d).sum();
+    if sum != bar_duration {
+        return None;
+    }
+    Some(
+        bar.iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>()
+            .join(" "),
+    )
+}
+
 fn build_bar_symbols(bar: &[(String, u32)], bar_duration: u32, beats_per_bar: u32) -> Vec<BarSym> {
     let beats_per_bar = beats_per_bar as usize;
     let beat_duration = bar_duration / beats_per_bar as u32;
@@ -221,8 +243,12 @@ fn push_remainder_tokens(
 
     let sub_bar = grid_suffix_as_bar(grid, start, eighth_dur);
     let sub_bar_dur = slice_len as u32 * eighth_dur;
-    let sub_syms = build_bar_symbols(&sub_bar, sub_bar_dur, slice_len as u32);
-    let s = six_eight_merge_slash_runs_in_symbols(&sub_syms);
+    let s = if let Some(compact) = try_format_equal_duration_segments(&sub_bar, sub_bar_dur) {
+        compact
+    } else {
+        let sub_syms = build_bar_symbols(&sub_bar, sub_bar_dur, slice_len as u32);
+        six_eight_merge_slash_runs_in_symbols(&sub_syms)
+    };
     for t in s.split_whitespace() {
         tokens.push(t.to_string());
     }
@@ -280,6 +306,10 @@ fn format_bar_beat_slashes(
     // One harmonic segment for the full bar: omit per-beat `/` and `·` fillers (#38).
     if bar.len() == 1 && bar[0].1 == bar_duration {
         return bar[0].0.clone();
+    }
+
+    if let Some(s) = try_format_equal_duration_segments(bar, bar_duration) {
+        return s;
     }
 
     if compact_six_eight && beats_per_bar == 6 {
@@ -478,7 +508,7 @@ mod tests {
     }
 
     #[test]
-    fn bars_common_time_two_half_bar_chords_keeps_beat_fillers() {
+    fn bars_common_time_two_half_bar_chords_no_fillers_when_durations_equal() {
         let bar_duration = 4000;
         let beats_per_bar = 4;
         let line = line_with_chords(&["C:2", "G:2"]);
@@ -487,13 +517,10 @@ mod tests {
         let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
 
         let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "G"], "{tokens:?}");
         assert!(
-            tokens.iter().any(|t| *t == "/" || *t == "·"),
-            "expected continuation markers between changes: {tokens:?}"
-        );
-        assert!(
-            tokens.iter().filter(|t| **t == "C" || **t == "G").count() >= 2,
-            "{tokens:?}"
+            !tokens.iter().any(|t| *t == "/" || *t == "·"),
+            "unexpected continuation tokens: {tokens:?}"
         );
     }
 
@@ -588,5 +615,126 @@ mod tests {
             .filter(|t| *t != "·" && *t != "/")
             .collect();
         assert!(unique_chords.len() >= 2, "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_four_four_four_quarter_chords_names_only() {
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:1", "D:1", "E:1", "F:1"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "D", "E", "F"], "{tokens:?}");
+        assert!(!tokens.iter().any(|t| *t == "/" || *t == "·"), "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_three_four_three_equal_beats_names_only() {
+        let bar_duration = 3000;
+        let beats_per_bar = 3;
+        let line = line_with_chords(&["C:1", "G:1", "Am:1"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "G", "Am"], "{tokens:?}");
+        assert!(!tokens.iter().any(|t| *t == "/" || *t == "·"), "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_four_four_three_plus_one_uses_continuation_before_shorter_chord() {
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:3", "D:1"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+        let tokens = chord_tokens(&html);
+        assert!(
+            tokens.contains(&"C") && tokens.contains(&"D"),
+            "missing chords: {tokens:?}"
+        );
+        assert!(
+            tokens.iter().any(|t| *t == "/" || *t == "·"),
+            "expected continuation for unequal segments: {tokens:?}"
+        );
+    }
+
+    #[test]
+    fn bars_six_eighth_non_compact_equal_dotted_halves_names_only() {
+        let bar_duration = 3000;
+        let beats_per_bar = 6;
+        let line = line_with_chords(&["C:3", "G:3"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "G"], "{tokens:?}");
+        assert!(!tokens.iter().any(|t| *t == "/" || *t == "·"), "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_six_eighth_non_compact_three_equal_pairs_names_only() {
+        let bar_duration = 3000;
+        let beats_per_bar = 6;
+        let line = line_with_chords(&["C:2", "D:2", "E:2"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "D", "E"], "{tokens:?}");
+        assert!(!tokens.iter().any(|t| *t == "/" || *t == "·"), "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_six_eighth_compact_still_uses_continuation_when_durations_differ() {
+        let bar_duration = 3000;
+        let beats_per_bar = 6;
+        let line = line_with_chords(&["C:4", "G:2"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, true);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "/", "G"], "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_repeated_chord_equal_halves_shows_both_names() {
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:2", "C:2"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "C"], "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_compact_six_eight_flag_ignored_for_four_four_equal_halves() {
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:2", "G:2"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, true);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "G"], "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_incomplete_bar_equal_segments_keep_beat_grid() {
+        // Two one-beat chords without filling the bar: durations match each other but do not
+        // partition the full bar, so continuation tokens remain.
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:1", "G:1"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+        let tokens = chord_tokens(&html);
+        assert_eq!(tokens, vec!["C", "G", "/", "/"], "{tokens:?}");
     }
 }
