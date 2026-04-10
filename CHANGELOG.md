@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.0] — Song vectors, chord spelling & HTML bars
+
+### ✨ New features
+
+- **🎸 HTML equal-length chord segments** — When every chord segment in a full bar has the same duration, render chord names only (no per-beat `/` or `·` continuation tokens). Partial bars and unequal lengths keep the beat grid. (#47)
+
+### 🐛 Fixes
+
+- **Chord spelling (slash bass)** — `Chord::format` now emits extensions before the slash bass (e.g. `C4/E` instead of the incorrect `C/E4`). (#44)
+- **HTML bar continuation** — When explicit chord segments end before the bar duration, remaining beat cells continue the last harmony with `/` instead of `·`. (#45)
+
+### ⚠️ Breaking change & migration
+
+**`Song` uses vectors only for titles, artists, and languages (#46)**
+
+Scalar `title` / `artist` / `language` and `Option<Vec<…>>` wrappers are removed. Primary values come from index 0 via `title()`, `artist()`, and `language()` (empty string when the vector is empty). ChordPro parsing and Worship Pro I/O use the vectors directly; serde defaults missing fields to empty `Vec`s.
+
+**What to do:** Update downstream code to the new public `Song` fields and getters. If you deserialize stored JSON, align payloads with the new shape or rely on serde defaults where applicable.
+
+---
+
 ## [0.7.0] — HTML bars, chord parsing & layout
 
 ### ✨ New features
@@ -84,6 +105,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.8.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.0
 [0.7.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.7.0
 [0.6.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.6.0
 [0.5.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.5.0
