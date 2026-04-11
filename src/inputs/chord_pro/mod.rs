@@ -10,6 +10,23 @@ use std::collections::BTreeMap;
 use crate::error::Error;
 use crate::types::{Line, Part, Section, SimpleChord, Song};
 
+/// First `{key: ...}` directive in the file (same ordering as `SectionIterator`).
+fn chordpro_key_directive(input: &str) -> Option<String> {
+    for line in input.lines() {
+        let line = line.trim();
+        let Some(inner) = line.strip_prefix('{').and_then(|s| s.strip_suffix('}')) else {
+            continue;
+        };
+        let Some((k, v)) = inner.split_once(':') else {
+            continue;
+        };
+        if k.trim() == "key" {
+            return Some(v.trim().to_string());
+        }
+    }
+    None
+}
+
 /// If `line` is `{repeat}` or `{repeat: N}` (N ≥ 1), returns Some(repeat_count).
 /// `{repeat}` → 2. Otherwise returns None (not a repeat directive).
 /// Returns Err if it looks like a repeat directive but is invalid (e.g. `{repeat: 0}`).
@@ -172,6 +189,12 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     let mut time = None;
     let mut tags = BTreeMap::new();
 
+    let song_key = chordpro_key_directive(input)
+        .as_ref()
+        .map(|k| k.trim())
+        .filter(|k| !k.is_empty())
+        .and_then(|k| SimpleChord::try_from(k).ok());
+
     let sections = SectionIterator::new(
         input,
         &mut titles,
@@ -185,7 +208,9 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
         &mut tags,
     )
     .map(|(keyword, lines)| {
-        build_section_from_lines(keyword, &lines, |line| PartIterator::new(line, 4000))
+        build_section_from_lines(keyword, &lines, |line| {
+            PartIterator::new(line, 4000, song_key.clone())
+        })
     })
     .collect::<Result<Vec<Section>, Error>>()?;
 
@@ -198,7 +223,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
                     .map(|(num, denom)| 1000 * num * 4 / denom)
                     .unwrap_or(4000);
                 build_section_from_lines(keyword, &lines, |line| {
-                    PartIterator::new(line, bar_duration)
+                    PartIterator::new(line, bar_duration, song_key.clone())
                 })
             })
             .collect::<Result<Vec<Section>, Error>>()?
@@ -478,6 +503,28 @@ mod tests {
         assert!(out.contains("[1]") && out.contains("[4]") && out.contains("[5]"));
         let again = load_string(&out).expect("round-trip");
         assert_eq!(again.key, song.key);
+    }
+
+    /// Letter chords with `{key: C}` must render as scale degrees relative to C (not as if key were A).
+    /// See https://github.com/xilefmusics/chordlib/issues/49
+    #[test]
+    fn nashville_letter_chords_key_c_issue_49() {
+        let input = r#"{title: Repro}
+{key: C}
+{section: Verse}
+[G][C]
+"#;
+        let song = load_string(input).expect("parse");
+        let key = song.key.as_ref().unwrap();
+        let rep = ChordRepresentation::Nashville;
+        let parts: Vec<_> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].format(key, &rep), "5");
+        assert_eq!(parts[1].format(key, &rep), "1");
     }
 
     #[test]

@@ -13,6 +13,20 @@ static CHORD_STRINGS_NASHVILLE: &[&str] = &[
     "1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7",
 ];
 
+/// Longest `CHORD_STRINGS_NASHVILLE` entry that prefixes `s` (degree index and byte length).
+pub(crate) fn match_nashville_chord_prefix(s: &str) -> Option<(usize, usize)> {
+    let mut best: Option<(usize, usize)> = None;
+    for (idx, &name) in CHORD_STRINGS_NASHVILLE.iter().enumerate() {
+        if s.starts_with(name) {
+            let len = name.len();
+            if best.is_none_or(|(_, l)| len > l) {
+                best = Some((idx, len));
+            }
+        }
+    }
+    best
+}
+
 pub(crate) static CHORD_STRINGS_ENHARMONIC: &[&str] = &["B#", "E#", "Cb", "Fb"];
 pub(crate) static CHORD_LEVELS_ENHARMONIC: &[u8] = &[3, 8, 2, 7];
 
@@ -91,7 +105,9 @@ impl SimpleChord {
     pub fn format(&self, key: &SimpleChord, representation: &ChordRepresentation) -> &'static str {
         match representation {
             ChordRepresentation::Nashville => {
-                CHORD_STRINGS_NASHVILLE[((self.level + key.level) % 12) as usize]
+                // Scale degree relative to the song key: after `Chord::normalize`, `self.level` is
+                // the semitone interval from the key root to the chord root.
+                CHORD_STRINGS_NASHVILLE[(self.level % 12) as usize]
             }
             ChordRepresentation::Default => match key.level {
                 0 | 2 | 3 | 5 | 7 | 9 | 10 => {
