@@ -246,7 +246,7 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
     if !titles.iter().any(|t| !t.is_empty()) {
         return Err(Error::Parse("no title given".into()));
     }
-    Ok(Song {
+    let mut song = Song {
         titles,
         subtitle,
         copyright,
@@ -257,9 +257,12 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
         time,
         tags,
         sections,
+    };
+    // Chords parsed with `song_key` are already key-relative; absolute roots need one normalize.
+    if song_key.is_none() {
+        song.normalize();
     }
-    .normalize()
-    .clone())
+    Ok(song)
 }
 
 #[cfg(test)]

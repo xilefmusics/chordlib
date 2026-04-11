@@ -82,6 +82,8 @@ impl SimpleChord {
         Self::new(self.level + level)
     }
 
+    /// Rewrites **absolute** pitch class (`self`) to a semitone interval from `key` (tonic of
+    /// `key` at its own pitch class).
     pub fn normalize(&self, key: &Self) -> Self {
         self.transpose(12 - key.level)
     }

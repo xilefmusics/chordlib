@@ -145,6 +145,12 @@ impl Kind {
     }
 }
 
+/// Chord symbol: root and optional slash bass are [`SimpleChord`] pitch-class levels.
+///
+/// In a song loaded from ChordPro with a known `{key: …}`, roots are stored as **semitone
+/// intervals from the song key** (0 = tonic). From [`Chord::from_str`] without a key, roots are
+/// **absolute** pitch class (A = 0); call [`Chord::normalize`] with the song key before formatting
+/// in that representation.
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Chord {
     main: SimpleChord,
@@ -170,6 +176,8 @@ impl Chord {
         result
     }
 
+    /// Interprets [`SimpleChord`] roots as **absolute** pitch class (A = 0) and rewrites them as
+    /// semitone intervals from `key` (same convention as keyed ChordPro ingest).
     pub fn normalize(self, key: &SimpleChord) -> Self {
         let mut result = self;
         result.main = result.main.normalize(key);
@@ -275,20 +283,26 @@ impl Chord {
         )))
     }
 
-    /// Like [`parse_simple_chord`], but when `key` is `Some` and the root is a Nashville numeral
-    /// (`1`, `b3`, …), resolves it to absolute pitch class relative to the song key before
-    /// [`Song::normalize`].
+    /// Like [`parse_simple_chord`], but when `key` is `Some`, roots are **intervals from the song
+    /// key** (0–11): Nashville numerals use the chromatic degree index; letter names use
+    /// `(absolute_pitch - key + 12) % 12`.
     fn parse_simple_chord_with_key<'a>(
         s: &'a str,
         key: Option<&SimpleChord>,
     ) -> Result<(SimpleChord, &'a str), Error> {
-        if let Some(k) = key
+        if let Some(_k) = key
             && let Some((degree_idx, consumed)) = match_nashville_chord_prefix(s)
         {
-            let main = SimpleChord::new((k.pitch_class() + degree_idx as u8) % 12);
+            let main = SimpleChord::new(degree_idx as u8);
             return Ok((main, &s[consumed..]));
         }
-        Self::parse_simple_chord(s)
+        let (parsed, rest) = Self::parse_simple_chord(s)?;
+        if let Some(k) = key {
+            let relative = SimpleChord::new((parsed.pitch_class() + 12 - k.pitch_class()) % 12);
+            Ok((relative, rest))
+        } else {
+            Ok((parsed, rest))
+        }
     }
 
     fn parse_kind(s: &str) -> (Kind, &str) {
@@ -356,8 +370,8 @@ impl Chord {
         Ok((None, s))
     }
 
-    /// Parse a chord symbol; when `key` is `Some` (song key from ChordPro), Nashville numeral
-    /// roots (`1`, `b7`, …) are interpreted relative to that key.
+    /// Parse a chord symbol. When `key` is `Some`, root and slash bass are stored as semitone
+    /// intervals from that key; when `None`, roots are absolute pitch class (see [`Chord`]).
     pub fn from_str_with_key(mut s: &str, key: Option<&SimpleChord>) -> Result<Self, Error> {
         let optional = s.starts_with('(') && s.ends_with(')');
         if optional {
