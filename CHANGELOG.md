@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.1] — Nashville degrees & key-aware ChordPro
+
+### 🐛 Fixes
+
+- **Nashville scale degrees** — Nashville output no longer double-counts the song key; chord roots use the correct degree relative to the key (#50, fixes #49).
+- **ChordPro + key** — With a resolvable `{key: …}`, chord roots are parsed key-relative so Nashville numerals and letter chords align with the key; documents absolute vs key-relative conventions on `Chord` and `SimpleChord::normalize` (#50).
+
+---
+
 ## [0.8.0] — Song vectors, chord spelling & HTML bars
 
 ### ✨ New features
@@ -105,6 +114,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.8.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.1
 [0.8.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.0
 [0.7.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.7.0
 [0.6.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.6.0
