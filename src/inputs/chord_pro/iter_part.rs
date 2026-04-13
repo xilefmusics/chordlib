@@ -1,18 +1,20 @@
 use crate::error::Error;
-use crate::types::{Chord, Part};
+use crate::types::{Chord, Part, SimpleChord};
 
 pub struct PartIterator<'a> {
     bar_duration: u32,
     line: &'a str,
     chord_cache: Vec<Chord>,
+    song_key: Option<SimpleChord>,
 }
 
 impl<'a> PartIterator<'a> {
-    pub fn new(line: &'a str, bar_duration: u32) -> Self {
+    pub fn new(line: &'a str, bar_duration: u32, song_key: Option<SimpleChord>) -> Self {
         Self {
             bar_duration,
             line: line.trim(),
             chord_cache: Vec::new(),
+            song_key,
         }
     }
 
@@ -77,7 +79,18 @@ impl<'a> PartIterator<'a> {
         if is_repeat_marker {
             return Some(("", text).try_into());
         }
-        Some((chord, text).try_into())
+        let chord_opt = match chord.trim() {
+            "" => None,
+            s => match Chord::from_str_with_key(s, self.song_key.as_ref()) {
+                Ok(c) => Some(c),
+                Err(e) => return Some(Err(e)),
+            },
+        };
+        Some(Ok(Part {
+            chord: chord_opt,
+            languages: vec![text.to_string()],
+            comment: false,
+        }))
     }
 
     fn handle_pipe_chord(&mut self) -> Option<Result<Part, Error>> {
@@ -92,10 +105,12 @@ impl<'a> PartIterator<'a> {
                 break;
             }
 
-            self.chord_cache.push(match chord.parse::<Chord>() {
-                Ok(c) => c,
-                Err(e) => return Some(Err(e)),
-            });
+            self.chord_cache.push(
+                match Chord::from_str_with_key(chord, self.song_key.as_ref()) {
+                    Ok(c) => c,
+                    Err(e) => return Some(Err(e)),
+                },
+            );
 
             self.line = &self.line[end_idx + 1..];
         }

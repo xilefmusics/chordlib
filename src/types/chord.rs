@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use super::chord_simple::{CHORD_STRINGS_ENHARMONIC, CHORD_STRINGS_FLAT, CHORD_STRINGS_SHARP};
+use super::chord_simple::{
+    CHORD_STRINGS_ENHARMONIC, CHORD_STRINGS_FLAT, CHORD_STRINGS_SHARP, match_nashville_chord_prefix,
+};
 use super::{ChordRepresentation, SimpleChord};
 use crate::error::Error;
 
@@ -143,6 +145,12 @@ impl Kind {
     }
 }
 
+/// Chord symbol: root and optional slash bass are [`SimpleChord`] pitch-class levels.
+///
+/// In a song loaded from ChordPro with a known `{key: …}`, roots are stored as **semitone
+/// intervals from the song key** (0 = tonic). From [`Chord::from_str`] without a key, roots are
+/// **absolute** pitch class (A = 0); call [`Chord::normalize`] with the song key before formatting
+/// in that representation.
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Chord {
     main: SimpleChord,
@@ -168,6 +176,8 @@ impl Chord {
         result
     }
 
+    /// Interprets [`SimpleChord`] roots as **absolute** pitch class (A = 0) and rewrites them as
+    /// semitone intervals from `key` (same convention as keyed ChordPro ingest).
     pub fn normalize(self, key: &SimpleChord) -> Self {
         let mut result = self;
         result.main = result.main.normalize(key);
@@ -273,6 +283,28 @@ impl Chord {
         )))
     }
 
+    /// Like [`parse_simple_chord`], but when `key` is `Some`, roots are **intervals from the song
+    /// key** (0–11): Nashville numerals use the chromatic degree index; letter names use
+    /// `(absolute_pitch - key + 12) % 12`.
+    fn parse_simple_chord_with_key<'a>(
+        s: &'a str,
+        key: Option<&SimpleChord>,
+    ) -> Result<(SimpleChord, &'a str), Error> {
+        if let Some(_k) = key
+            && let Some((degree_idx, consumed)) = match_nashville_chord_prefix(s)
+        {
+            let main = SimpleChord::new(degree_idx as u8);
+            return Ok((main, &s[consumed..]));
+        }
+        let (parsed, rest) = Self::parse_simple_chord(s)?;
+        if let Some(k) = key {
+            let relative = SimpleChord::new((parsed.pitch_class() + 12 - k.pitch_class()) % 12);
+            Ok((relative, rest))
+        } else {
+            Ok((parsed, rest))
+        }
+    }
+
     fn parse_kind(s: &str) -> (Kind, &str) {
         if s.len() >= 4 {
             let l4: usize = s.chars().take(4).map(|c| c.len_utf8()).sum();
@@ -306,11 +338,11 @@ impl Chord {
         (Kind::Major, s)
     }
 
-    fn parse_slash_bass(s: &str) -> Result<Option<SimpleChord>, Error> {
+    fn parse_slash_bass(s: &str, key: Option<&SimpleChord>) -> Result<Option<SimpleChord>, Error> {
         if s.is_empty() {
             return Ok(None);
         }
-        let (chord, rest) = Self::parse_simple_chord(s)?;
+        let (chord, rest) = Self::parse_simple_chord_with_key(s, key)?;
         if !rest.is_empty() {
             return Err(Error::Parse(format!(
                 "invalid characters after bass note: {rest}",
@@ -337,22 +369,20 @@ impl Chord {
         }
         Ok((None, s))
     }
-}
 
-impl FromStr for Chord {
-    type Err = Error;
-
-    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
+    /// Parse a chord symbol. When `key` is `Some`, root and slash bass are stored as semitone
+    /// intervals from that key; when `None`, roots are absolute pitch class (see [`Chord`]).
+    pub fn from_str_with_key(mut s: &str, key: Option<&SimpleChord>) -> Result<Self, Error> {
         let optional = s.starts_with('(') && s.ends_with(')');
         if optional {
             s = &s[1..s.len() - 1];
         }
 
         let (duration, s) = Self::parse_duration(s)?;
-        let (main, s) = Self::parse_simple_chord(s)?;
+        let (main, s) = Self::parse_simple_chord_with_key(s, key)?;
         let (kind, s) = Self::parse_kind(s);
         let (var, s) = Self::parse_var(s);
-        let base = Self::parse_slash_bass(s)?;
+        let base = Self::parse_slash_bass(s, key)?;
 
         Ok(Self {
             main,
@@ -362,6 +392,14 @@ impl FromStr for Chord {
             duration,
             optional,
         })
+    }
+}
+
+impl FromStr for Chord {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str_with_key(s, None)
     }
 }
 
@@ -665,6 +703,45 @@ mod test {
         ] {
             assert_eq!(fmt_nashville(sym, &key), want, "{sym}");
         }
+    }
+
+    /// Nashville numerals are scale degrees relative to the song key (not only when key is A).
+    /// See https://github.com/xilefmusics/chordlib/issues/49
+    #[test]
+    fn nashville_normalized_tonic_dominant_key_c_and_g() {
+        let key_c = SimpleChord::try_from("C").unwrap();
+        let c = Chord::from_str("C").unwrap().normalize(&key_c);
+        let g = Chord::from_str("G").unwrap().normalize(&key_c);
+        assert_eq!(c.format(&key_c, &ChordRepresentation::Nashville), "1");
+        assert_eq!(g.format(&key_c, &ChordRepresentation::Nashville), "5");
+
+        let key_g = SimpleChord::try_from("G").unwrap();
+        let g1 = Chord::from_str("G").unwrap().normalize(&key_g);
+        let c4 = Chord::from_str("C").unwrap().normalize(&key_g);
+        let d5 = Chord::from_str("D").unwrap().normalize(&key_g);
+        assert_eq!(g1.format(&key_g, &ChordRepresentation::Nashville), "1");
+        assert_eq!(c4.format(&key_g, &ChordRepresentation::Nashville), "4");
+        assert_eq!(d5.format(&key_g, &ChordRepresentation::Nashville), "5");
+    }
+
+    /// Same chord roots in two keys: transpose roots by the key change → same Nashville numerals.
+    /// See https://github.com/xilefmusics/chordlib/issues/49
+    #[test]
+    fn nashville_transposition_invariant_issue_49() {
+        let key_c = SimpleChord::try_from("C").unwrap();
+        let key_d = SimpleChord::try_from("D").unwrap();
+        let c = Chord::from_str("C").unwrap().normalize(&key_c);
+        let g = Chord::from_str("G").unwrap().normalize(&key_c);
+        let d = Chord::from_str("D").unwrap().normalize(&key_d);
+        let a = Chord::from_str("A").unwrap().normalize(&key_d);
+        assert_eq!(
+            c.format(&key_c, &ChordRepresentation::Nashville),
+            d.format(&key_d, &ChordRepresentation::Nashville)
+        );
+        assert_eq!(
+            g.format(&key_c, &ChordRepresentation::Nashville),
+            a.format(&key_d, &ChordRepresentation::Nashville)
+        );
     }
 
     #[test]
