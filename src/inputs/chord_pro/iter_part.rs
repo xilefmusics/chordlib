@@ -105,6 +105,12 @@ impl<'a> PartIterator<'a> {
                 break;
             }
 
+            // `[]` inside a pipe bar: same as standalone `[]` in `handle_bracket` (no chord)
+            if chord.trim().is_empty() {
+                self.line = &self.line[end_idx + 1..];
+                continue;
+            }
+
             self.chord_cache.push(
                 match Chord::from_str_with_key(chord, self.song_key.as_ref()) {
                     Ok(c) => c,
