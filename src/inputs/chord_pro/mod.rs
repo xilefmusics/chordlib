@@ -368,6 +368,101 @@ mod tests {
         assert_eq!(song.sections[0].lines.len(), 1);
     }
 
+    /// Pipe bars split the measure evenly; remainder from `bar_duration / n` goes on the last chord
+    /// so durations sum to a full bar (no gap that would offset the next `[|]` group).
+    #[test]
+    fn pipe_bar_durations_partition_measure_exactly() {
+        let input = r#"{title: T}
+{key: C}
+{time: 4/4}
+{section: S}
+[|][C][D][E][|][F][|]
+"#;
+        let song = load_string(input).expect("parse");
+        let parts: Vec<_> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(parts.len(), 4);
+        let d0 = parts[0].get_duration().expect("d0");
+        let d1 = parts[1].get_duration().expect("d1");
+        let d2 = parts[2].get_duration().expect("d2");
+        let d3 = parts[3].get_duration().expect("d3");
+        assert_eq!(d0 + d1 + d2, 4000, "first pipe group fills one bar");
+        assert_eq!(d3, 4000, "second pipe group is one chord per bar");
+        assert_eq!((d0, d1, d2), (1333, 1333, 1334));
+    }
+
+    /// Two chords in a pipe bar: equal halves, no remainder; both get `bar_duration / 2`.
+    #[test]
+    fn pipe_bar_two_chords_equal_halves() {
+        let input = r#"{title: T}
+{key: C}
+{time: 4/4}
+{section: S}
+[|][C][G][|]
+"#;
+        let song = load_string(input).expect("parse");
+        let parts: Vec<_> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].get_duration(), Some(2000));
+        assert_eq!(parts[1].get_duration(), Some(2000));
+    }
+
+    /// One chord in a pipe bar fills the measure.
+    #[test]
+    fn pipe_bar_one_chord_full_measure() {
+        let input = r#"{title: T}
+{key: C}
+{time: 4/4}
+{section: S}
+[|][Am][|]
+"#;
+        let song = load_string(input).expect("parse");
+        let parts: Vec<_> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].get_duration(), Some(4000));
+    }
+
+    /// When `bar_duration` is not divisible by `n`, the last chord absorbs the remainder
+    /// (e.g. 6 chords in 4/4: five at 666 ms, last 670 ms).
+    #[test]
+    fn pipe_bar_six_chords_remainder_on_last() {
+        let input = r#"{title: T}
+{key: C}
+{time: 4/4}
+{section: S}
+[|][C][D][E][F][G][Am][|]
+"#;
+        let song = load_string(input).expect("parse");
+        let parts: Vec<_> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .collect();
+        assert_eq!(parts.len(), 6);
+        let sum: u32 = parts
+            .iter()
+            .map(|c| c.get_duration().expect("duration"))
+            .sum();
+        assert_eq!(sum, 4000);
+        assert_eq!(parts[0].get_duration(), Some(666));
+        assert_eq!(parts[1].get_duration(), Some(666));
+        assert_eq!(parts[2].get_duration(), Some(666));
+        assert_eq!(parts[3].get_duration(), Some(666));
+        assert_eq!(parts[4].get_duration(), Some(666));
+        assert_eq!(parts[5].get_duration(), Some(670));
+    }
+
     /// Copyright meta must round-trip with ChordPro spelling `{copyright:...}`, not `coptyright`.
     /// See https://github.com/xilefmusics/chordlib/issues/51
     #[test]

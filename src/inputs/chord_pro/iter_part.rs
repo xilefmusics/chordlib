@@ -129,11 +129,19 @@ impl<'a> PartIterator<'a> {
             return Some(Err(Error::Parse("bar does not contain chords".into())));
         };
 
-        let duration = self.bar_duration / self.chord_cache.len() as u32;
-        let cache = std::mem::take(&mut self.chord_cache); // replaces it with an empty vec
+        let n = self.chord_cache.len();
+        let base = self.bar_duration / n as u32;
+        // `bar_duration / n` truncates; assign the remainder to the last chord so each pipe bar
+        // partitions the measure exactly and the next `[|]` never inherits a sub-beat gap.
+        let last_duration = self.bar_duration - base * (n as u32 - 1);
+        let cache = std::mem::take(&mut self.chord_cache);
         self.chord_cache = cache
             .into_iter()
-            .map(|chord| chord.duration(duration))
+            .enumerate()
+            .map(|(i, chord)| {
+                let duration = if i + 1 == n { last_duration } else { base };
+                chord.duration(duration)
+            })
             .collect();
 
         Some(Ok(Part::new_chord(self.chord_cache.remove(0))))
