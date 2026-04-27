@@ -151,7 +151,7 @@ where
                     .max()
                     .unwrap_or(0);
 
-                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts.into_iter()) {
+                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts) {
                     if prev_part.languages.len() < new_lang_idx.saturating_add(1) {
                         prev_part
                             .languages
@@ -351,6 +351,45 @@ mod tests {
         assert!(
             out.contains("Verse") && out.contains("Lyrics here"),
             "unexpected export:\n{out}"
+        );
+    }
+
+    /// Copyright meta must round-trip with ChordPro spelling `{copyright:...}`, not `coptyright`.
+    /// See https://github.com/xilefmusics/chordlib/issues/51
+    #[test]
+    fn copyright_directive_uses_correct_spelling_in_export() {
+        let input = r#"{title: Test}
+{key: C}
+{copyright: © 2024 Example}
+{section: Verse}
+[C]Line
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(
+            song.copyright.as_deref(),
+            Some("© 2024 Example"),
+            "parser must accept {{copyright:...}}"
+        );
+
+        use crate::outputs::FormatChordPro;
+        let cp = (&song).format_chord_pro(None, None, None, false);
+        assert!(
+            cp.contains("{copyright:© 2024 Example}"),
+            "Chord Pro export must use {{copyright:...}}, got:\n{cp}"
+        );
+        assert!(
+            !cp.contains("coptyright"),
+            "must not emit misspelled coptyright"
+        );
+
+        let wp = (&song).format_chord_pro(None, None, None, true);
+        assert!(
+            wp.contains("{copyright: © 2024 Example}"),
+            "Worship Pro export must use {{copyright: ...}}, got:\n{wp}"
+        );
+        assert!(
+            !wp.contains("coptyright"),
+            "must not emit misspelled coptyright"
         );
     }
 
