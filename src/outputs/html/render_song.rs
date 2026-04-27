@@ -213,4 +213,40 @@ mod tests {
             html.chars().take(2000).collect::<String>()
         );
     }
+
+    /// After a multi-chord pipe bar that partitions the measure exactly, the next `[|]…[|]`
+    /// group’s chord must render as a full bar (single token, no spurious `F /` or `F ·` tails).
+    #[test]
+    fn html_pipe_bar_next_group_full_bar_no_continuation_fillers() {
+        let input = r#"{title: Pipe}
+{key: C}
+{time: 4/4}
+{section: S}
+[|][C][D][E][|][F][|]
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+        let html = (&song).format_html(None, Some(&rep), None, None);
+
+        assert!(
+            html.contains(r#"<span class="chord">F</span><span class="bar">|</span></span></p>"#),
+            "second bar should be a lone F in its cell; got: {}",
+            html.split(r#"<span class="keyword">S</span>"#)
+                .nth(1)
+                .unwrap_or(&html)
+                .chars()
+                .take(800)
+                .collect::<String>()
+        );
+        assert!(
+            !html.contains("F /") && !html.contains("F ·"),
+            "full-bar F after a complete pipe group must not use beat continuation tokens; got: {}",
+            html.split(r#"<span class="keyword">S</span>"#)
+                .nth(1)
+                .unwrap_or(&html)
+                .chars()
+                .take(800)
+                .collect::<String>()
+        );
+    }
 }

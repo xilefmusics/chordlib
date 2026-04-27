@@ -441,6 +441,21 @@ mod tests {
         chord_text.split_whitespace().collect()
     }
 
+    /// Text inside the n-th `<span class="chord">` (0 = first), up to the closing `</span>`.
+    fn nth_chord_cell_raw(html: &str, n: usize) -> &str {
+        let mut rest = html;
+        for _ in 0..n {
+            let start = rest.find("<span class=\"chord\">").expect("chord cell");
+            rest = &rest[start + "<span class=\"chord\">".len()..];
+            let end = rest.find("</span>").expect("chord cell end");
+            rest = &rest[end + "</span>".len()..];
+        }
+        let start = rest.find("<span class=\"chord\">").expect("chord cell");
+        let inner = &rest[start + "<span class=\"chord\">".len()..];
+        let end = inner.find("</span>").expect("chord cell end");
+        &inner[..end]
+    }
+
     #[test]
     fn bars_show_chords_starting_on_fractional_beats() {
         let bar_duration = 4000;
@@ -501,6 +516,21 @@ mod tests {
 
         let tokens = chord_tokens(&html);
         assert_eq!(tokens, vec!["C"], "{tokens:?}");
+    }
+
+    /// Durations 1333+1333+1334+4000 match a 4/4 pipe bar of three chords plus a full-bar chord
+    /// (see `pipe_bar_durations_partition_measure_exactly`). The second column must be a single
+    /// chord name with no `/` or `·` tail from a short bar spill.
+    #[test]
+    fn bars_exact_pipe_partition_second_column_single_chord_name() {
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let line = line_with_chords(&["C:1.333", "D:1.333", "E:1.334", "F:4"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
+
+        assert_eq!(nth_chord_cell_raw(&html, 1), "F", "html:\n{html}");
     }
 
     #[test]
