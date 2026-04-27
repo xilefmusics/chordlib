@@ -51,9 +51,8 @@ impl FormatChordPro for &Song {
             SimpleChord::default().format(key, &ChordRepresentation::Default)
         ));
 
-        // Copyright (note: preserve existing field name typo for compatibility)
         if let Some(copyright) = &self.copyright {
-            meta.push(format!("{{coptyright{}{}}}", separator, copyright));
+            meta.push(format!("{{copyright{}{}}}", separator, copyright));
         }
 
         // Artist(s)
