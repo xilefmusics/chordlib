@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use super::{Chord, SimpleChord};
 use crate::error::Error;
+use crate::text::normalize_space_separators;
 
 fn find_first_vowel(text: &str) -> Option<usize> {
     text.char_indices()
@@ -42,6 +43,8 @@ fn find_first_vowel(text: &str) -> Option<usize> {
 }
 
 fn normalize_whitespace(input: &str) -> String {
+    let input = normalize_space_separators(input);
+    let input = input.as_ref();
     let mut result = String::with_capacity(input.len());
     let mut in_whitespace = false;
 

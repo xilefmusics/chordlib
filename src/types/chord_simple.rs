@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
+use crate::text::remove_space_separators;
 
 pub(crate) static CHORD_STRINGS_SHARP: &[&str] = &[
     "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#",
@@ -120,18 +121,34 @@ impl SimpleChord {
         }
     }
 
+    /// Best-effort key from a free-form label (e.g. `"Dm"`, `"F# / major"`). Uses the first
+    /// 1–2 **Unicode characters** (not bytes) to match `TryFrom<&str>`, so multi-byte names do not
+    /// cause panics. [Unicode `Space_Separator`](crate::text::remove_space_separators) (Zs) “fake
+    /// spaces” (e.g. U+00A0, U+205F) are **removed** so tokens like `C#` and `C #` both resolve.
     pub fn guess_key(key: &str) -> SimpleChord {
+        let cleaned = remove_space_separators(key);
+        let key = cleaned.as_ref().trim_start();
         if key.is_empty() {
             return SimpleChord::default();
         }
 
-        let chord = match SimpleChord::try_from(&key[..1]) {
+        let mut it = key.char_indices();
+        let (i0, c0) = match it.next() {
+            Some(p) => p,
+            None => return SimpleChord::default(),
+        };
+        let one_end = i0 + c0.len_utf8();
+        let one = &key[i0..one_end];
+
+        let chord = match SimpleChord::try_from(one) {
             Ok(chord) => chord,
             Err(_) => return SimpleChord::default(),
         };
 
-        let chord = if key.len() > 1 {
-            SimpleChord::try_from(&key[..2]).unwrap_or(chord)
+        let chord = if let Some((i1, c1)) = it.next() {
+            let two_end = i1 + c1.len_utf8();
+            let two = &key[i0..two_end];
+            SimpleChord::try_from(two).unwrap_or(chord)
         } else {
             chord
         };
@@ -214,6 +231,31 @@ mod tests {
         let c = SimpleChord::try_from("C").unwrap();
         let key = SimpleChord::default();
         assert_eq!(c.format(&key, &ChordRepresentation::Default), "C");
+    }
+
+    #[test]
+    fn guess_key_uses_chars_not_bytes_for_two_letter_names() {
+        assert_eq!(
+            SimpleChord::guess_key("Bb").pitch_class(),
+            SimpleChord::try_from("Bb").unwrap().pitch_class()
+        );
+        assert_eq!(
+            SimpleChord::guess_key("D#").pitch_class(),
+            SimpleChord::try_from("D#").unwrap().pitch_class()
+        );
+    }
+
+    #[test]
+    fn guess_key_does_not_panic_on_medium_mathematical_space() {
+        // U+205F is 3 UTF-8 bytes; old byte slices would panic on similar strings.
+        let s = format!("D\u{205F} ");
+        assert_eq!(SimpleChord::guess_key(&s).pitch_class(), 5);
+        assert_eq!(SimpleChord::guess_key("C\u{205F}#").pitch_class(), 4);
+        assert_eq!(SimpleChord::guess_key("C#").pitch_class(), 4);
+        assert_eq!(
+            SimpleChord::guess_key("So\u{205f}pl"),
+            SimpleChord::default()
+        );
     }
 
     #[test]

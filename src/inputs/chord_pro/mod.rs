@@ -8,6 +8,7 @@ use iter_space_section::SpaceSectionIterator;
 use std::collections::BTreeMap;
 
 use crate::error::Error;
+use crate::text::remove_space_separators;
 use crate::types::{Line, Part, Section, SimpleChord, Song};
 
 /// First `{key: ...}` directive in the file (same ordering as `SectionIterator`).
@@ -229,8 +230,9 @@ pub fn load_string(input: &str) -> Result<Song, Error> {
             .collect::<Result<Vec<Section>, Error>>()?
     };
 
-    let key_str = key.ok_or(Error::Parse("no key given".into()))?;
-    let key_str = key_str.trim();
+    let key_stored = key.ok_or(Error::Parse("no key given".into()))?;
+    let key_clean = remove_space_separators(&key_stored);
+    let key_str = key_clean.as_ref().trim();
     if key_str
         .chars()
         .next()
@@ -578,6 +580,13 @@ mod tests {
 "#;
         let r = load_string(input);
         assert!(r.is_err(), "{{key: 1}} must be rejected");
+    }
+
+    #[test]
+    fn key_directive_strips_typographic_space_before_sharp() {
+        let input = "{title: T}\n{key: C\u{205F}#}\n{section: Verse}\n[C]\n";
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.key.as_ref().unwrap().pitch_class(), 4);
     }
 
     #[test]
