@@ -328,8 +328,9 @@ pub fn render_bars(
     beats_per_bar: u32,
     compact_six_eight: bool,
 ) -> String {
-    let mut columns: Vec<String> = Vec::new();
     let beats_per_bar = beats_per_bar.max(1);
+
+    let mut rows: Vec<Vec<String>> = Vec::with_capacity(lines.len());
 
     for line in lines {
         let mut bars = vec![];
@@ -367,18 +368,26 @@ pub fn render_bars(
             bars.push(current_bar);
         }
 
-        for (idx, bar) in bars.into_iter().enumerate() {
-            let formatted_bar =
-                format_bar_beat_slashes(&bar, bar_duration, beats_per_bar, compact_six_eight);
+        rows.push(
+            bars.into_iter()
+                .map(|bar| {
+                    format_bar_beat_slashes(&bar, bar_duration, beats_per_bar, compact_six_eight)
+                })
+                .collect(),
+        );
+    }
 
-            match columns.get_mut(idx) {
-                Some(column) => {
-                    column.push_str("<br>");
-                    column.push_str(&formatted_bar);
-                }
-                None => columns.push(formatted_bar),
+    let max_cols = rows.iter().map(|r| r.len()).max().unwrap_or(0);
+    let mut columns: Vec<String> = Vec::with_capacity(max_cols);
+    for j in 0..max_cols {
+        let mut col = String::new();
+        for (i, row) in rows.iter().enumerate() {
+            if i > 0 {
+                col.push_str("<br>");
             }
+            col.push_str(row.get(j).map(String::as_str).unwrap_or(""));
         }
+        columns.push(col);
     }
 
     let repeat_count = lines.len().saturating_sub(1);
@@ -736,5 +745,29 @@ mod tests {
         let html = render_bars(&[&line], &key, &rep, bar_duration, beats_per_bar, false);
         let tokens = chord_tokens(&html);
         assert_eq!(tokens, vec!["C", "G", "/", "/"], "{tokens:?}");
+    }
+
+    #[test]
+    fn bars_unequal_line_length_last_line_extra_measure_aligns_bottom_row() {
+        // When one chord-only line has more bars than another, each column must still have one
+        // row per line so the extra chord sits on the correct line (not the top row).
+        let bar_duration = 4000;
+        let beats_per_bar = 4;
+        let shorter = line_with_chords(&["C:4", "C:4", "C:4", "C:4"]);
+        let longer = line_with_chords(&["D:4", "D:4", "D:4", "D:4", "E:4"]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+        let html = render_bars(
+            &[&shorter, &shorter, &longer],
+            &key,
+            &rep,
+            bar_duration,
+            beats_per_bar,
+            false,
+        );
+        assert!(
+            html.contains("</span><span class=\"chord\"><br><br>E</span>"),
+            "expected padded rows before E in last column, got:\n{html}"
+        );
     }
 }
