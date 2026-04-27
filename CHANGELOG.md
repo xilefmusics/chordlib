@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.2] — ChordPro pipe bars, HTML grid & chord spacing
+
+### 🐛 Fixes
+
+- **ChordPro pipe bars** — Empty bracket groups inside `|` bar lines are ignored; measures that use `|` are split so each bar matches a full notated measure (#56, #57).
+- **ChordPro `{copyright}`** — Directive is emitted with the correct spelling (#52).
+- **HTML chord-only bars** — Bar grid aligns when consecutive chord-only lines have different lengths (#54).
+- **Chord text** — Unicode space separators are normalized and stripped consistently when parsing chord symbols (#55).
+
+---
+
 ## [0.8.1] — Nashville degrees & key-aware ChordPro
 
 ### 🐛 Fixes
@@ -114,6 +125,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.8.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.2
 [0.8.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.1
 [0.8.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.0
 [0.7.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.7.0
