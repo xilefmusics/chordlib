@@ -356,6 +356,18 @@ mod tests {
         );
     }
 
+    /// `[]` after chords in a pipe bar (SongSelect-style layout) is a spacer, not a chord.
+    #[test]
+    fn chordpro_empty_brackets_inside_pipe_bar() {
+        let input = r#"{title: Pipe + empty}
+{key: B}
+{section: Intro}
+[|][C][D]     []
+"#;
+        let song = load_string(input).expect("parse");
+        assert_eq!(song.sections[0].lines.len(), 1);
+    }
+
     /// Copyright meta must round-trip with ChordPro spelling `{copyright:...}`, not `coptyright`.
     /// See https://github.com/xilefmusics/chordlib/issues/51
     #[test]
