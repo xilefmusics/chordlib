@@ -9,6 +9,13 @@
 //! See the README for end-to-end examples.
 
 mod error;
+mod unicode_space;
+
+/// Normalization helpers for user-facing text (e.g. Unicode space separators to ASCII).
+pub mod text {
+    pub use crate::unicode_space::{normalize_space_separators, remove_space_separators};
+}
+
 pub use error::Error;
 
 pub mod inputs;
