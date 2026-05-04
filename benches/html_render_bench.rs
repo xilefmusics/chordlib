@@ -130,8 +130,8 @@ fn song_nashville() -> Song {
     for _ in 0..30 {
         input.push_str(
             "{section: Verse}\n\
-             [1]Line [4]with [5]numbers\n\
-             [1m]Another [4]line [5]\n",
+             [C]Line [F]with [G]numbers\n\
+             [Cm]Another [F]line [G]\n",
         );
     }
     load_song(&input)
