@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.0] — Default spelling matrix & keyed ChordPro parsing
+
+### Breaking changes
+
+- **Keyed ChordPro** — With `{key: …}`, chord roots must use **letter spellings** (e.g. `[C]`). Nashville numerals inside brackets (`[1]`, `[b7]`, …) are no longer interpreted as scale degrees. Nashville **output** (`ChordRepresentation::Nashville`) from letter chords is unchanged (#60).
+- **`Chord` serde** — Removed field `main_is_nashville_numeral`; unknown JSON keys remain ignored by default deserialization (#60).
+
+### 🛠️ Refactor
+
+- **Default chord spelling** — Per-key symbol tables, `ChordRepresentation::symbols`, and slash-bass spelling aligned with the chord-root row; `SimpleChord::format` simplified; ChordPro tests and HTML benchmarks updated (#60).
+
+---
+
 ## [0.8.3] — Nashville b7 spelling
 
 ### 🐛 Fixes
@@ -137,6 +150,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.9.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.9.0
 [0.8.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.3
 [0.8.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.2
 [0.8.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.1
