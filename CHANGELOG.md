@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.3] — Nashville b7 spelling
+
+### 🐛 Fixes
+
+- **Nashville `b7` (default letters)** — Keyed numerals such as `b7` now print the diatonic lowered seventh (e.g. `Bb` in `C` instead of `A#`). Letter chords and ChordPro transposition behavior are unchanged (#58, #59).
+
+### 🛠️ Other
+
+- **`Chord` serde** — Optional `main_is_nashville_numeral` (default `false`) records whether the root came from the Nashville parse path with a song key; it is cleared on `normalize`.
+
+---
+
 ## [0.8.2] — ChordPro pipe bars, HTML grid & chord spacing
 
 ### 🐛 Fixes
@@ -125,6 +137,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.8.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.3
 [0.8.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.2
 [0.8.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.1
 [0.8.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.0

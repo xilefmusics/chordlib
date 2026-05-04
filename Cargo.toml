@@ -1,6 +1,6 @@
 [package]
 name = "chordlib"
-version = "0.8.2"
+version = "0.8.3"
 edition = "2024"
 description = "Work with chord-and-lyrics songs: parse, transform, and render them to multiple formats"
 license = "AGPL-3.0-only"
