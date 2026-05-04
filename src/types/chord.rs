@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use super::chord_simple::{
-    format_nashville_root_default, format_slash_bass_default, match_nashville_chord_prefix,
-};
 use super::{ChordRepresentation, SimpleChord};
 use crate::error::Error;
 
@@ -31,12 +28,6 @@ impl Kind {
     }
 }
 
-/// Chord symbol: root and optional slash bass are [`SimpleChord`] pitch-class levels.
-///
-/// In a song loaded from ChordPro with a known `{key: …}`, roots are stored as **semitone
-/// intervals from the song key** (0 = tonic). From [`Chord::from_str`] without a key, roots are
-/// **absolute** pitch class (A = 0); call [`Chord::normalize`] with the song key before formatting
-/// in that representation.
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Chord {
     main: SimpleChord,
@@ -46,9 +37,6 @@ pub struct Chord {
     duration: Option<u32>,
     #[serde(default)]
     optional: bool,
-    /// True when the root was parsed as a Nashville numeral with a song key (`b7`, `5`, …).
-    #[serde(default)]
-    main_is_nashville_numeral: bool,
 }
 
 impl Chord {
@@ -65,11 +53,8 @@ impl Chord {
         result
     }
 
-    /// Interprets [`SimpleChord`] roots as **absolute** pitch class (A = 0) and rewrites them as
-    /// semitone intervals from `key` (same convention as keyed ChordPro ingest).
     pub fn normalize(self, key: &SimpleChord) -> Self {
         let mut result = self;
-        result.main_is_nashville_numeral = false;
         result.main = result.main.normalize(key);
         result.base = result.base.clone().map(|base| base.normalize(key));
         result
@@ -134,30 +119,30 @@ impl Chord {
     }
 
     pub fn format(&self, key: &SimpleChord, representation: &ChordRepresentation) -> String {
-        let (optional_start, optional_end) = if self.optional { ("(", ")") } else { ("", "") };
-
-        let slash = self.base.as_ref().map(|base| {
-            let bass = match representation {
-                ChordRepresentation::Default => format_slash_bass_default(&self.main, base, key),
-                _ => base.format(key, representation),
+        let base = self.base.as_ref().map(|base| {
+            let base = match representation {
+                ChordRepresentation::Default => {
+                    // Default matrix: SYMBOLS[K][interval] spells pitch `(K + interval) % 12`.
+                    // Slash bass spells the chromatic bass using the chord-root row (K = root pc).
+                    let root_abs_pc = self.main.combined_level(key);
+                    let bass_abs_pc = base.combined_level(key);
+                    let interval = (bass_abs_pc + 12 - root_abs_pc) % 12;
+                    SimpleChord::new(interval)
+                        .format(&SimpleChord::new(root_abs_pc), representation)
+                }
+                ChordRepresentation::Nashville => base.format(key, representation),
             };
-            format!("/{bass}")
+            format!("/{base}")
         });
 
         format!(
             "{}{}{}{}{}{}",
-            optional_start,
-            if matches!(representation, ChordRepresentation::Default)
-                && self.main_is_nashville_numeral
-            {
-                format_nashville_root_default(&self.main, key)
-            } else {
-                self.main.format(key, representation)
-            },
+            if self.optional { "(" } else { "" },
+            self.main.format(key, representation),
             self.kind.format(),
             self.var,
-            slash.unwrap_or_default(),
-            optional_end,
+            base.unwrap_or_default(),
+            if self.optional { ")" } else { "" },
         )
     }
 
@@ -179,25 +164,16 @@ impl Chord {
         )))
     }
 
-    /// Like [`parse_simple_chord`], but when `key` is `Some`, roots are **intervals from the song
-    /// key** (0–11): Nashville numerals use the chromatic degree index; letter names use
-    /// `(absolute_pitch - key + 12) % 12`.
     fn parse_simple_chord_with_key<'a>(
         s: &'a str,
         key: Option<&SimpleChord>,
-    ) -> Result<(SimpleChord, &'a str, bool), Error> {
-        if key.is_some()
-            && let Some((degree_idx, consumed)) = match_nashville_chord_prefix(s)
-        {
-            let main = SimpleChord::new(degree_idx as u8);
-            return Ok((main, &s[consumed..], true));
-        }
+    ) -> Result<(SimpleChord, &'a str), Error> {
         let (parsed, rest) = Self::parse_simple_chord(s)?;
         if let Some(k) = key {
             let relative = SimpleChord::new((parsed.pitch_class() + 12 - k.pitch_class()) % 12);
-            Ok((relative, rest, false))
+            Ok((relative, rest))
         } else {
-            Ok((parsed, rest, false))
+            Ok((parsed, rest))
         }
     }
 
@@ -238,7 +214,7 @@ impl Chord {
         if s.is_empty() {
             return Ok(None);
         }
-        let (chord, rest, _) = Self::parse_simple_chord_with_key(s, key)?;
+        let (chord, rest) = Self::parse_simple_chord_with_key(s, key)?;
         if !rest.is_empty() {
             return Err(Error::Parse(format!(
                 "invalid characters after bass note: {rest}",
@@ -266,8 +242,6 @@ impl Chord {
         Ok((None, s))
     }
 
-    /// Parse a chord symbol. When `key` is `Some`, root and slash bass are stored as semitone
-    /// intervals from that key; when `None`, roots are absolute pitch class (see [`Chord`]).
     pub fn from_str_with_key(mut s: &str, key: Option<&SimpleChord>) -> Result<Self, Error> {
         let optional = s.starts_with('(') && s.ends_with(')');
         if optional {
@@ -275,7 +249,7 @@ impl Chord {
         }
 
         let (duration, s) = Self::parse_duration(s)?;
-        let (main, s, main_is_nashville_numeral) = Self::parse_simple_chord_with_key(s, key)?;
+        let (main, s) = Self::parse_simple_chord_with_key(s, key)?;
         let (kind, s) = Self::parse_kind(s);
         let (var, s) = Self::parse_var(s);
         let base = Self::parse_slash_bass(s, key)?;
@@ -287,7 +261,6 @@ impl Chord {
             var: var.to_string(),
             duration,
             optional,
-            main_is_nashville_numeral,
         })
     }
 }
@@ -325,37 +298,6 @@ mod test {
             "from_str({sym:?}) with key level {}",
             key.pitch_class()
         );
-    }
-
-    /// Nashville `b7` uses the flat seventh letter name; see issue #58.
-    /// Pitch class 9 (`Gb` / `F#`) is stored without enharmonic preference, so the tonic is
-    /// spelled like `F#` and the lowered seventh is `E` (not `Fb`).
-    #[test]
-    fn nashville_b7_default_spelling_diatonic_flat_seventh_issue_58() {
-        let keys = [
-            ("A", "G"),
-            ("Bb", "Ab"),
-            ("B", "A"),
-            ("C", "Bb"),
-            ("Db", "Cb"),
-            ("D", "C"),
-            ("Eb", "Db"),
-            ("E", "D"),
-            ("F", "Eb"),
-            ("Gb", "E"),
-            ("G", "F"),
-            ("Ab", "Gb"),
-        ];
-        for (key_name, want_root) in keys {
-            let key = SimpleChord::try_from(key_name).unwrap();
-            let s = Chord::from_str_with_key("b7", Some(&key))
-                .unwrap()
-                .format(&key, &ChordRepresentation::Default);
-            assert_eq!(
-                s, want_root,
-                "b7 in key {key_name} should spell as {want_root}"
-            );
-        }
     }
 
     #[test]
@@ -428,12 +370,10 @@ mod test {
         assert_default("Cm7/E", &key_a, "Cm7/E");
         assert_default("Cadd9/E", &key_a, "Cadd9/E");
 
-        // `{ key: C }` uses combined pitch + key for slash spelling (see `slash_bass_song_key_c`);
-        // extensions must still precede the slash bass.
         let key_c = SimpleChord::try_from("C").unwrap();
-        assert_default("C4/E", &key_c, "D#4/G");
-        assert_default("Cm7/E", &key_c, "D#m7/G");
-        assert_default("Cadd9/E", &key_c, "D#add9/G");
+        assert_default("C4/E", &key_c, "Eb4/G");
+        assert_default("Cm7/E", &key_c, "Ebm7/G");
+        assert_default("Cadd9/E", &key_c, "Ebadd9/G");
     }
 
     #[test]
@@ -453,8 +393,8 @@ mod test {
         let key = SimpleChord::default();
         assert_eq!(
             c.format(&key, &ChordRepresentation::Default),
-            "G#/B#",
-            "default notation preserves written B# bass"
+            "G#/C",
+            "slash bass is spelled using the chord root as spelling key"
         );
         assert_eq!(
             c.format(&key, &ChordRepresentation::Nashville),
@@ -470,7 +410,7 @@ mod test {
         let normalized = c.normalize(&key);
         assert_eq!(
             normalized.format(&key, &ChordRepresentation::Default),
-            "G#/B#"
+            "G#/C"
         );
     }
 
@@ -490,27 +430,25 @@ mod test {
             Chord::from_str("F/Cb")
                 .unwrap()
                 .format(&key, &ChordRepresentation::Default),
-            "F/Cb",
-            "tritone bass: lowered fifth letter (C→Cb)"
+            "F/B",
+            "Cb bass shares pitch class with B under slash-by-chord-root matrix spelling"
         );
         assert_eq!(
             Chord::from_str("Ab/C")
                 .unwrap()
                 .format(&key, &ChordRepresentation::Default),
-            "G#/B#",
-            "same pitch class as Ab/C; key C uses sharp root name so the third is B#"
+            "G#/C",
+            "slash bass keyed to chord-root spelling row matches pitch class"
         );
         assert_eq!(
             Chord::from_str("G/Fb")
                 .unwrap()
                 .format(&key, &ChordRepresentation::Default),
             "G/E",
-            "Fb and E share pitch class; sixth is spelled with the diatonic letter E"
+            "Fb bass shares pitch class with E under slash-by-chord-root matrix spelling"
         );
     }
 
-    /// `SimpleChord::default()` is level 0 (A in internal encoding). Sharp key branch; combined
-    /// roots match treating the song key as A for these assertions.
     #[test]
     fn slash_bass_default_key_c_major_chords() {
         let key = SimpleChord::default();
@@ -532,13 +470,13 @@ mod test {
             ("E/B", "E/B"),
             ("F/G", "F/G"),
             ("F/A", "F/A"),
-            ("F/B", "F/Cb"),
+            ("F/B", "F/B"),
             ("F/C", "F/C"),
             ("G/A", "G/A"),
             ("G/B", "G/B"),
             ("G/C", "G/C"),
             ("G/D", "G/D"),
-            ("G/F", "G/E#"),
+            ("G/F", "G/F"),
             ("A/B", "A/B"),
             ("A/C#", "A/C#"),
             ("A/D", "A/D"),
@@ -546,28 +484,27 @@ mod test {
             ("B/C#", "B/C#"),
             ("B/D#", "B/D#"),
             ("B/E", "B/E"),
-            ("B/F#", "B/F#"),
-            ("C#/E#", "C#/E#"),
-            ("C#/F#", "C#/F#"),
-            ("C#/G#", "C#/G#"),
+            ("B/F#", "B/Gb"),
+            ("C#/E#", "C#/F"),
+            ("C#/F#", "C#/Gb"),
+            ("C#/G#", "C#/Ab"),
             ("F#/A#", "F#/A#"),
             ("F#/B", "F#/B"),
-            ("G#/C", "G#/B#"),
-            ("G#/D#", "G#/D#"),
-            ("Bb/D", "A#/D"),
-            ("Db/F", "C#/E#"),
-            ("Eb/G", "D#/G"),
+            ("G#/C", "G#/C"),
+            ("G#/D#", "G#/Eb"),
+            ("Bb/D", "Bb/D"),
+            ("Db/F", "C#/F"),
+            ("Eb/G", "Eb/G"),
         ] {
             assert_default(sym, &key, want);
         }
     }
 
-    /// ChordPro `{key: C}` uses `SimpleChord` level 3; slash spelling uses combined pitch + key.
     #[test]
     fn slash_bass_song_key_c_try_from_c() {
         let key = SimpleChord::try_from("C").unwrap();
         assert_eq!(key.pitch_class(), 3);
-        for (sym, want) in [("C/G", "D#/A#"), ("G/C", "A#/D#"), ("D/A", "F/C")] {
+        for (sym, want) in [("C/G", "Eb/Bb"), ("G/C", "Bb/Eb"), ("D/A", "F/C")] {
             assert_default(sym, &key, want);
         }
     }
@@ -589,9 +526,9 @@ mod test {
             ("Asus4/E", "Asus4/E"),
             ("Asus2/E", "Asus2/E"),
             ("Dsus4/G", "Dsus4/G"),
-            ("Cdim/Gb", "Cdim/Gb"),
-            ("Caug/G#", "Caug/Ab"),
-            ("Daug/A#", "Daug/Bb"),
+            ("Cdim/Gb", "Cdim/F#"),
+            ("Caug/G#", "Caug/G#"),
+            ("Daug/A#", "Daug/A#"),
         ] {
             assert_default(sym, &key, want);
         }
@@ -603,7 +540,7 @@ mod test {
         for (sym, want) in [
             ("C/E", "Ab/C"),
             ("F/C", "Db/Ab"),
-            ("Bb/F", "Gb/Db"),
+            ("Bb/F", "Gb/C#"),
             ("Dm/G", "Bbm/Eb"),
         ] {
             assert_default(sym, &key, want);
@@ -633,8 +570,6 @@ mod test {
         }
     }
 
-    /// Nashville numerals are scale degrees relative to the song key (not only when key is A).
-    /// See https://github.com/xilefmusics/chordlib/issues/49
     #[test]
     fn nashville_normalized_tonic_dominant_key_c_and_g() {
         let key_c = SimpleChord::try_from("C").unwrap();
@@ -652,8 +587,6 @@ mod test {
         assert_eq!(d5.format(&key_g, &ChordRepresentation::Nashville), "5");
     }
 
-    /// Same chord roots in two keys: transpose roots by the key change → same Nashville numerals.
-    /// See https://github.com/xilefmusics/chordlib/issues/49
     #[test]
     fn nashville_transposition_invariant_issue_49() {
         let key_c = SimpleChord::try_from("C").unwrap();

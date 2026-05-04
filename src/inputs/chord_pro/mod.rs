@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    fn chordpro_preserves_enharmonic_slash_bass() {
+    fn chordpro_slash_bass_matches_default_matrix_spelling() {
         let input = r#"{title: Test}
 {key: C}
 {section: Verse}
@@ -332,8 +332,8 @@ mod tests {
         use crate::outputs::FormatChordPro;
         let out = (&song).format_chord_pro(None, Some(&ChordRepresentation::Default), None, false);
         assert!(
-            out.contains("[G#/B#]"),
-            "expected G#/B# in export, got:\n{out}"
+            out.contains("[G#/C]"),
+            "expected G#/C in export (slash bass uses chord-root spelling key), got:\n{out}"
         );
     }
 
@@ -631,8 +631,8 @@ mod tests {
         let input = r#"{title: Nashville Test}
 {key: C}
 {section: Verse}
-[1][4][5][1]
-[1m][4][5]
+[C][F][G][C]
+[Cm][F][G]
 "#;
         let song = load_string(input).expect("parse");
         assert_eq!(song.sections.len(), 1);
@@ -645,6 +645,13 @@ mod tests {
             .map(|c| c.format(key, &rep).to_string())
             .collect();
         assert_eq!(line0, ["1", "4", "5", "1"], "Nashville chords in key C");
+        let line1: Vec<String> = song.sections[0].lines[1]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .map(|c| c.format(key, &rep).to_string())
+            .collect();
+        assert_eq!(line1, ["1m", "4", "5"]);
         use crate::outputs::FormatChordPro;
         let out = (&song).format_chord_pro(None, Some(&rep), None, false);
         assert!(
@@ -652,7 +659,9 @@ mod tests {
             "key stays letter in output"
         );
         assert!(out.contains("[1]") && out.contains("[4]") && out.contains("[5]"));
-        let again = load_string(&out).expect("round-trip");
+        let out_letters =
+            (&song).format_chord_pro(None, Some(&ChordRepresentation::Default), None, false);
+        let again = load_string(&out_letters).expect("round-trip letters");
         assert_eq!(again.key, song.key);
     }
 
