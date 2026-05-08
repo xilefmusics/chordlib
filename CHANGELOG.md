@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.10.0] — Root-aware slash bass & B fifth spelling
+
+### 🐛 Fixes
+
+- **Key of B — fifth spelling** — The default letter matrix spells the perfect fifth above B as **F#** instead of Gb (#61).
+
+### ✨ Features
+
+- **Slash bass and written root** — Chord roots parsed with `#` or `b` (e.g. `C#`, `Bb`) set a `RootSpellingHint` used when spelling slash bass, so pairs like **C#/F#** stay consistent instead of mixing in Gb. New API: `RootSpellingHint`, `ChordRepresentation::symbols_with_root_spelling`, `SimpleChord::format_with_key_root_spelling`, and `Chord::with_root_spelling_hint` (#61).
+
+### 🛠️ Other
+
+- **`Chord` JSON** — Optional `root_spelling_hint` (`default` / `prefer_sharp` / `prefer_flat`); omitted in older payloads. `Chord::transpose` resets the hint to default (#61).
+- **Flat roots** — With a flat-written root, some slash chords align the bass to the same convention (e.g. **Bb/F** in key F may format as **Gb/Db** rather than Gb/C#) (#61).
+
+---
+
 ## [0.9.0] — Default spelling matrix & keyed ChordPro parsing
 
 ### Breaking changes
@@ -150,6 +167,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.10.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.10.0
 [0.9.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.9.0
 [0.8.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.3
 [0.8.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.2
