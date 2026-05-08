@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use super::{ChordRepresentation, SimpleChord};
+use super::SimpleChord;
+use super::chord_representation::{
+    ChordRepresentation, RootSpellingHint, root_spelling_from_symbol,
+};
 use crate::error::Error;
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -37,15 +40,23 @@ pub struct Chord {
     duration: Option<u32>,
     #[serde(default)]
     optional: bool,
+    /// Accidental bias inferred from the parsed root token (`#` vs `b`), for slash-bass spelling.
+    #[serde(default)]
+    root_spelling_hint: RootSpellingHint,
 }
 
 impl Chord {
+    pub fn with_root_spelling_hint(mut self, hint: RootSpellingHint) -> Self {
+        self.root_spelling_hint = hint;
+        self
+    }
     pub fn new(level: u8) -> Self {
         Self::default().transpose(level)
     }
 
     pub fn transpose(self, level: u8) -> Self {
         let mut result = self;
+        result.root_spelling_hint = RootSpellingHint::default();
         result.main = result.main.transpose(level);
         if let Some(base) = result.base.clone() {
             result.base = Some(base.transpose(level));
@@ -123,12 +134,16 @@ impl Chord {
             let base = match representation {
                 ChordRepresentation::Default => {
                     // Default matrix: SYMBOLS[K][interval] spells pitch `(K + interval) % 12`.
-                    // Slash bass spells the chromatic bass using the chord-root row (K = root pc).
+                    // Slash bass spells the chromatic bass using the chord-root row (K = root pc)
+                    // and the root's written accidental (`C#` vs `Db`) when choosing that row.
                     let root_abs_pc = self.main.combined_level(key);
                     let bass_abs_pc = base.combined_level(key);
                     let interval = (bass_abs_pc + 12 - root_abs_pc) % 12;
-                    SimpleChord::new(interval)
-                        .format(&SimpleChord::new(root_abs_pc), representation)
+                    SimpleChord::new(interval).format_with_key_root_spelling(
+                        &SimpleChord::new(root_abs_pc),
+                        representation,
+                        self.root_spelling_hint,
+                    )
                 }
                 ChordRepresentation::Nashville => base.format(key, representation),
             };
@@ -146,17 +161,21 @@ impl Chord {
         )
     }
 
-    fn parse_simple_chord(s: &str) -> Result<(SimpleChord, &str), Error> {
+    fn parse_simple_chord(s: &str) -> Result<(SimpleChord, RootSpellingHint, &str), Error> {
         let l1 = s.chars().next().map_or(0, |c| c.len_utf8());
         let l2 = s.chars().nth(1).map_or(0, |c| c.len_utf8());
 
         if l2 > 0 && SimpleChord::try_from(&s[..l1 + l2]).is_ok() {
-            let chord = SimpleChord::try_from(&s[..l1 + l2])?;
-            return Ok((chord, &s[l1 + l2..]));
+            let sym = &s[..l1 + l2];
+            let chord = SimpleChord::try_from(sym)?;
+            let hint = root_spelling_from_symbol(sym);
+            return Ok((chord, hint, &s[l1 + l2..]));
         }
         if l1 > 0 && SimpleChord::try_from(&s[..l1]).is_ok() {
-            let chord = SimpleChord::try_from(&s[..l1])?;
-            return Ok((chord, &s[l1..]));
+            let sym = &s[..l1];
+            let chord = SimpleChord::try_from(sym)?;
+            let hint = root_spelling_from_symbol(sym);
+            return Ok((chord, hint, &s[l1..]));
         }
         Err(Error::Parse(format!(
             "can not parse a simple chord from the string: {}",
@@ -167,13 +186,13 @@ impl Chord {
     fn parse_simple_chord_with_key<'a>(
         s: &'a str,
         key: Option<&SimpleChord>,
-    ) -> Result<(SimpleChord, &'a str), Error> {
-        let (parsed, rest) = Self::parse_simple_chord(s)?;
+    ) -> Result<(SimpleChord, RootSpellingHint, &'a str), Error> {
+        let (parsed, hint, rest) = Self::parse_simple_chord(s)?;
         if let Some(k) = key {
             let relative = SimpleChord::new((parsed.pitch_class() + 12 - k.pitch_class()) % 12);
-            Ok((relative, rest))
+            Ok((relative, hint, rest))
         } else {
-            Ok((parsed, rest))
+            Ok((parsed, hint, rest))
         }
     }
 
@@ -214,7 +233,7 @@ impl Chord {
         if s.is_empty() {
             return Ok(None);
         }
-        let (chord, rest) = Self::parse_simple_chord_with_key(s, key)?;
+        let (chord, _bass_hint, rest) = Self::parse_simple_chord_with_key(s, key)?;
         if !rest.is_empty() {
             return Err(Error::Parse(format!(
                 "invalid characters after bass note: {rest}",
@@ -249,7 +268,7 @@ impl Chord {
         }
 
         let (duration, s) = Self::parse_duration(s)?;
-        let (main, s) = Self::parse_simple_chord_with_key(s, key)?;
+        let (main, root_spelling_hint, s) = Self::parse_simple_chord_with_key(s, key)?;
         let (kind, s) = Self::parse_kind(s);
         let (var, s) = Self::parse_var(s);
         let base = Self::parse_slash_bass(s, key)?;
@@ -261,6 +280,7 @@ impl Chord {
             var: var.to_string(),
             duration,
             optional,
+            root_spelling_hint,
         })
     }
 }
@@ -277,6 +297,7 @@ impl FromStr for Chord {
 mod test {
     use super::*;
     use crate::types::ChordRepresentation;
+    use crate::types::RootSpellingHint;
 
     fn fmt_default(sym: &str, key: &SimpleChord) -> String {
         Chord::from_str(sym)
@@ -311,15 +332,20 @@ mod test {
                 "can not parse a simple chord from the string: ".into(),
             )),
             Ok(Chord::new(0)),
-            Ok(Chord::new(1)),
-            Ok(Chord::new(4)),
+            Ok(Chord::new(1).with_root_spelling_hint(RootSpellingHint::PreferFlat)),
+            Ok(Chord::new(4).with_root_spelling_hint(RootSpellingHint::PreferSharp)),
             Ok(Chord::new(5).dim()),
             Ok(Chord::new(7).aug()),
             Ok(Chord::new(8).dim()),
             Ok(Chord::new(10).aug()),
-            Ok(Chord::new(9).aug()),
+            Ok(Chord::new(9)
+                .aug()
+                .with_root_spelling_hint(RootSpellingHint::PreferFlat)),
             Ok(Chord::new(0).base(SimpleChord::new(2))),
-            Ok(Chord::new(4).minor().base(SimpleChord::new(11))),
+            Ok(Chord::new(4)
+                .minor()
+                .base(SimpleChord::new(11))
+                .with_root_spelling_hint(RootSpellingHint::PreferSharp)),
             Ok(Chord::new(0).sus4()),
             Ok(Chord::new(0).sus4()),
             Ok(Chord::new(0).sus2()),
@@ -450,6 +476,19 @@ mod test {
     }
 
     #[test]
+    fn default_spelling_key_b_perfect_fifth_is_fsharp() {
+        let key_b = SimpleChord::try_from("B").unwrap();
+        let fifth = SimpleChord::new(7);
+        assert_eq!(
+            fifth.format(&key_b, &ChordRepresentation::Default),
+            "F#",
+            "perfect fifth above B is F#, not Gb"
+        );
+        let dom = Chord::from_str("F#").unwrap().normalize(&key_b);
+        assert_eq!(dom.format(&key_b, &ChordRepresentation::Default), "F#");
+    }
+
+    #[test]
     fn slash_bass_default_key_c_major_chords() {
         let key = SimpleChord::default();
         for (sym, want) in [
@@ -484,14 +523,14 @@ mod test {
             ("B/C#", "B/C#"),
             ("B/D#", "B/D#"),
             ("B/E", "B/E"),
-            ("B/F#", "B/Gb"),
+            ("B/F#", "B/F#"),
             ("C#/E#", "C#/F"),
-            ("C#/F#", "C#/Gb"),
-            ("C#/G#", "C#/Ab"),
+            ("C#/F#", "C#/F#"),
+            ("C#/G#", "C#/G#"),
             ("F#/A#", "F#/A#"),
             ("F#/B", "F#/B"),
             ("G#/C", "G#/C"),
-            ("G#/D#", "G#/Eb"),
+            ("G#/D#", "G#/D#"),
             ("Bb/D", "Bb/D"),
             ("Db/F", "C#/F"),
             ("Eb/G", "Eb/G"),
@@ -540,7 +579,7 @@ mod test {
         for (sym, want) in [
             ("C/E", "Ab/C"),
             ("F/C", "Db/Ab"),
-            ("Bb/F", "Gb/C#"),
+            ("Bb/F", "Gb/Db"),
             ("Dm/G", "Bbm/Eb"),
         ] {
             assert_default(sym, &key, want);
