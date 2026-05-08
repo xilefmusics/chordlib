@@ -7,7 +7,7 @@ mod section;
 mod song;
 
 pub use chord::{Chord, Kind};
-pub use chord_representation::ChordRepresentation;
+pub use chord_representation::{ChordRepresentation, RootSpellingHint};
 pub use chord_simple::SimpleChord;
 pub use line::Line;
 pub use part::Part;

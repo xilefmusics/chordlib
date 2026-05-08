@@ -4,7 +4,7 @@ use serde_json::Value;
 use crate::error::Error;
 use crate::text::remove_space_separators;
 
-use super::chord_representation::{ChordRepresentation, symbol_to_pitch_class};
+use super::chord_representation::{ChordRepresentation, RootSpellingHint, symbol_to_pitch_class};
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct SimpleChord {
@@ -60,6 +60,16 @@ impl SimpleChord {
 
     pub fn format(&self, key: &SimpleChord, representation: &ChordRepresentation) -> &'static str {
         representation.symbols(key.level)[(self.level % 12) as usize]
+    }
+
+    pub fn format_with_key_root_spelling(
+        &self,
+        key: &SimpleChord,
+        representation: &ChordRepresentation,
+        key_root_spelling: RootSpellingHint,
+    ) -> &'static str {
+        representation.symbols_with_root_spelling(key.level, key_root_spelling)
+            [(self.level % 12) as usize]
     }
 
     pub fn guess_key(key: &str) -> SimpleChord {
