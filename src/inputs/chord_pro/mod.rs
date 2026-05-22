@@ -977,4 +977,49 @@ mod tests {
             "Worship Pro export must contain second language lyrics as &-line"
         );
     }
+
+    /// Worship Pro fixture: key C with letter chords and Nashville numerals on separate lines.
+    #[test]
+    fn worship_pro_key_c_mixed_letter_and_nashville_chords() {
+        const FIXTURE: &str = include_str!("../../../tests/fixtures/key_c_mixed_chords.wp");
+        let song = load_string(FIXTURE).expect("parse key C mixed chords fixture");
+        use crate::types::ChordRepresentation;
+        assert_eq!(
+            song.key
+                .as_ref()
+                .unwrap()
+                .format(&SimpleChord::default(), &ChordRepresentation::Default),
+            "C"
+        );
+        assert_eq!(song.sections.len(), 1);
+        assert_eq!(song.sections[0].lines.len(), 2);
+
+        let key = song.key.as_ref().unwrap();
+        let default = ChordRepresentation::Default;
+        let nashville = ChordRepresentation::Nashville;
+
+        let letter_line: Vec<String> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .map(|c| c.format(key, &default).to_string())
+            .collect();
+        assert_eq!(letter_line, ["C", "F", "G", "Bb"]);
+
+        let numeral_line: Vec<String> = song.sections[0].lines[1]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .map(|c| c.format(key, &nashville).to_string())
+            .collect();
+        assert_eq!(numeral_line, ["1", "4", "5", "b7"]);
+
+        let numeral_as_letters: Vec<String> = song.sections[0].lines[1]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .map(|c| c.format(key, &default).to_string())
+            .collect();
+        assert_eq!(numeral_as_letters, letter_line);
+    }
 }

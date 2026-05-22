@@ -12,4 +12,5 @@ use css_template::CssTemplate;
 pub use format_html::FormatHTML;
 use html_page_template::HtmlPageTemplate;
 use html_template::HtmlTemplate;
+pub use render_section::render_section;
 pub use render_song::wrap_html;

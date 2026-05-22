@@ -2,7 +2,84 @@ use super::{CssTemplate, FormatHTML, HtmlPageTemplate, HtmlTemplate, render_sect
 use crate::types::{ChordRepresentation, SimpleChord, Song};
 use askama::Template;
 
+struct HtmlRenderContext {
+    key: SimpleChord,
+    representation: ChordRepresentation,
+    language: usize,
+    bar_duration: u32,
+    beats_per_bar: u32,
+    compact_six_eight: bool,
+}
+
+impl Song {
+    fn html_render_context(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+    ) -> (HtmlRenderContext, String) {
+        let language = language.unwrap_or(0);
+
+        let self_key = self.key.as_ref().unwrap_or(&SimpleChord::default()).clone();
+        let key = key.unwrap_or(&self_key).clone();
+        let key_str = SimpleChord::default()
+            .format(&key, &ChordRepresentation::Default)
+            .to_string();
+
+        let ctx = HtmlRenderContext {
+            key,
+            representation: representation
+                .cloned()
+                .unwrap_or(ChordRepresentation::Default),
+            language,
+            bar_duration: self.bar_duration(),
+            beats_per_bar: self.beats_per_bar(),
+            compact_six_eight: self.time == Some((6, 8)),
+        };
+
+        (ctx, key_str)
+    }
+
+    fn render_section_htmls(&self, ctx: &HtmlRenderContext) -> Vec<String> {
+        self.sections
+            .iter()
+            .map(|section| {
+                render_section::render_section(
+                    section,
+                    &ctx.key,
+                    &ctx.representation,
+                    ctx.language,
+                    ctx.bar_duration,
+                    ctx.beats_per_bar,
+                    ctx.compact_six_eight,
+                )
+            })
+            .collect()
+    }
+
+    fn html_css(&self, scale: Option<f32>) -> String {
+        let mut template = CssTemplate::new().has_footer(self.copyright.is_some());
+        if let Some(scale) = scale {
+            template = template.scale(scale);
+        }
+        template.render().unwrap()
+    }
+}
+
 impl FormatHTML for &Song {
+    fn format_html_sections(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+    ) -> (Vec<String>, String) {
+        let (ctx, _) = self.html_render_context(key, representation, language);
+        let sections = self.render_section_htmls(&ctx);
+        let css = self.html_css(scale);
+        (sections, css)
+    }
+
     fn format_html_page(
         &self,
         key: Option<&SimpleChord>,
@@ -11,10 +88,8 @@ impl FormatHTML for &Song {
         scale: Option<f32>,
     ) -> (String, String) {
         let language = language.unwrap_or(0);
-
-        let self_key = self.key.as_ref().unwrap_or(&SimpleChord::default()).clone();
-        let key = key.unwrap_or(&self_key);
-        let key_str = SimpleChord::default().format(key, &ChordRepresentation::Default);
+        let (ctx, key_str) = self.html_render_context(key, representation, Some(language));
+        let section_htmls = self.render_section_htmls(&ctx);
 
         let selected_artist = self.artist_slice().and_then(|list| {
             let idx = language;
@@ -38,48 +113,21 @@ impl FormatHTML for &Song {
             (None, None) => String::new(),
         };
 
-        let beats_per_bar = self.beats_per_bar();
-        let bar_duration = self.bar_duration();
-        let compact_six_eight = self.time == Some((6, 8));
         let display_title = self.title_for_language(Some(language));
-        let page_template = self
-            .sections
-            .iter()
-            .map(|section| {
-                render_section::render_section(
-                    section,
-                    key,
-                    representation
-                        .as_ref()
-                        .map_or(&ChordRepresentation::Default, |v| v),
-                    language,
-                    bar_duration,
-                    beats_per_bar,
-                    compact_six_eight,
-                )
-            })
-            .fold(
-                HtmlPageTemplate::with_capacity(self.sections.len())
-                    .title(display_title)
-                    .subtitle(&subtitle)
-                    .key(key_str)
-                    .tempo(&self.tempo)
-                    .time(&self.time)
-                    .copyright(&self.copyright),
-                |template, section| template.section(section),
-            );
-
-        let style_template = {
-            let mut template = CssTemplate::new().has_footer(self.copyright.is_some());
-            if let Some(scale) = scale {
-                template = template.scale(scale);
-            }
-            template
-        };
+        let page_template = section_htmls.into_iter().fold(
+            HtmlPageTemplate::with_capacity(self.sections.len())
+                .title(display_title)
+                .subtitle(&subtitle)
+                .key(&key_str)
+                .tempo(&self.tempo)
+                .time(&self.time)
+                .copyright(&self.copyright),
+            |template, section| template.section(section),
+        );
 
         (
             page_template.render().unwrap(),
-            style_template.render().unwrap(),
+            self.html_css(scale),
         )
     }
 
@@ -117,6 +165,61 @@ mod tests {
         let close = format!("</{tag}>");
         let close_idx = html[open_end..].find(&close)? + open_end;
         Some(html[open_end..close_idx].to_string())
+    }
+
+    #[test]
+    fn format_html_sections_returns_one_fragment_per_section() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[C]Line one
+{section: Chorus}
+[C]Line two
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let (sections, css) = (&song).format_html_sections(None, Some(&rep), None, None);
+        assert_eq!(sections.len(), 2);
+        assert!(sections[0].contains("<span class=\"keyword\">Verse</span>"));
+        assert!(sections[1].contains("<span class=\"keyword\">Chorus</span>"));
+        assert!(!sections[0].contains("<div class=\"page\">"));
+        assert!(!css.is_empty());
+    }
+
+    #[test]
+    fn format_html_sections_empty_when_no_sections() {
+        let input = r#"{title: Empty}
+{key: C}
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let (sections, css) = (&song).format_html_sections(None, Some(&rep), None, None);
+        assert!(sections.is_empty());
+        assert!(!css.is_empty());
+    }
+
+    #[test]
+    fn format_html_page_sections_match_format_html_sections() {
+        let input = r#"{title: Match}
+{key: C}
+{section: A}
+[C]One
+{section: B}
+[D]Two
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let (section_htmls, css_sections) =
+            (&song).format_html_sections(None, Some(&rep), None, None);
+        let (page_html, css_page) = (&song).format_html_page(None, Some(&rep), None, None);
+
+        for section in &section_htmls {
+            assert!(page_html.contains(section.as_str()));
+        }
+        assert_eq!(css_sections, css_page);
     }
 
     #[test]
