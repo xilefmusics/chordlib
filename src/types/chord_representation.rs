@@ -125,6 +125,26 @@ static NASHVILLE_SYMBOLS: &[&str] = &[
     "1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7",
 ];
 
+/// Longest-prefix match for a Nashville scale-degree root at the start of `s`.
+///
+/// Returns `(remaining, interval)` where `interval` is 0..11 (index into
+/// [`NASHVILLE_SYMBOLS`]).
+pub fn parse_nashville_root_prefix(s: &str) -> Option<(&str, u8)> {
+    static ORDERED: &[&str] = &[
+        "b2", "b3", "b5", "b6", "b7", "1", "2", "3", "4", "5", "6", "7",
+    ];
+    for sym in ORDERED {
+        if let Some(rest) = s.strip_prefix(sym) {
+            let interval = NASHVILLE_SYMBOLS
+                .iter()
+                .position(|&candidate| candidate == *sym)
+                .expect("ordered root is in NASHVILLE_SYMBOLS") as u8;
+            return Some((rest, interval));
+        }
+    }
+    None
+}
+
 static DEFAULT_SYMBOLS: [[&str; 12]; 12] = [
     [
         "A", "Bb", "B", "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#",
@@ -167,17 +187,17 @@ static DEFAULT_SYMBOLS: [[&str; 12]; 12] = [
 pub fn symbol_to_pitch_class(symbol: &str) -> Result<u8, Error> {
     Ok(match symbol {
         "A" | "1" | "7#" => 0,
-        "A#" | "Bb" | "1#" | "2b" => 1,
+        "A#" | "Bb" | "1#" | "b2" => 1,
         "B" | "Cb" | "2" => 2,
-        "C" | "B#" | "2#" | "3b" => 3,
-        "C#" | "Db" | "3" | "4b" => 4,
+        "C" | "B#" | "2#" | "b3" => 3,
+        "C#" | "Db" | "3" => 4,
         "D" | "4" | "3#" => 5,
-        "D#" | "Eb" | "4#" | "5b" => 6,
+        "D#" | "Eb" | "4#" | "b5" => 6,
         "E" | "Fb" | "5" => 7,
-        "F" | "E#" | "5#" | "6b" => 8,
+        "F" | "E#" | "5#" | "b6" => 8,
         "F#" | "Gb" | "6" => 9,
-        "G" | "6#" | "7b" => 10,
-        "G#" | "Ab" | "7" | "1b" => 11,
+        "G" | "6#" | "b7" => 10,
+        "G#" | "Ab" | "7" => 11,
         _ => return Err(Error::Parse(format!("unknown symbol: {}", symbol))),
     })
 }

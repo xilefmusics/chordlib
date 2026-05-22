@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### ✨ Features
+
+- **Keyed Nashville numeral input** — With `{key: …}`, chord roots written as Nashville numerals (`[1]`, `[b7]`, `[6m/1]`, …) are parsed as scale degrees relative to the key. Letter roots (e.g. `[C]`, `[F#]`) continue to use absolute pitch-class parsing. Chromatic Nashville spellings `b2`–`b7` are accepted on input. `chord.rs` tests parse a hardcoded reference vocabulary of common worship symbols.
+
+---
+
 ## [0.10.0] — Root-aware slash bass & B fifth spelling
 
 ### 🐛 Fixes

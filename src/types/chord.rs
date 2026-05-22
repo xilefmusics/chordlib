@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use super::SimpleChord;
 use super::chord_representation::{
-    ChordRepresentation, RootSpellingHint, root_spelling_from_symbol,
+    ChordRepresentation, RootSpellingHint, parse_nashville_root_prefix, root_spelling_from_symbol,
 };
 use crate::error::Error;
 
@@ -187,6 +187,12 @@ impl Chord {
         s: &'a str,
         key: Option<&SimpleChord>,
     ) -> Result<(SimpleChord, RootSpellingHint, &'a str), Error> {
+        if key.is_some()
+            && let Some((rest, interval)) = parse_nashville_root_prefix(s)
+        {
+            return Ok((SimpleChord::new(interval), RootSpellingHint::Default, rest));
+        }
+
         let (parsed, hint, rest) = Self::parse_simple_chord(s)?;
         if let Some(k) = key {
             let relative = SimpleChord::new((parsed.pitch_class() + 12 - k.pitch_class()) % 12);
@@ -319,6 +325,74 @@ mod test {
             "from_str({sym:?}) with key level {}",
             key.pitch_class()
         );
+    }
+
+    const NASHVILLE_CHORD_REFERENCE: &[&str] = &[
+        "1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7", "1m", "b2m", "2m", "b3m",
+        "3m", "4m", "b5m", "5m", "b6m", "6m", "b7m", "7m", "1dim", "b2dim", "2dim", "3dim", "4dim",
+        "b5dim", "5dim", "b6dim", "6dim", "b7dim", "7dim", "1aug", "b2aug", "2aug", "3aug", "4aug",
+        "b5aug", "5aug", "b6aug", "6aug", "b7aug", "7aug", "1sus4", "2sus4", "3sus4", "4sus4",
+        "5sus4", "6sus4", "7sus4", "1sus2", "2sus2", "3sus2", "4sus2", "5sus2", "6sus2", "7sus2",
+        "17", "b27", "27", "b37", "37", "47", "b57", "57", "b67", "67", "b77", "77", "1maj7",
+        "b2maj7", "2maj7", "b3maj7", "3maj7", "4maj7", "b5maj7", "5maj7", "b6maj7", "6maj7",
+        "b7maj7", "7maj7", "1M7", "2M7", "3M7", "4M7", "5M7", "6M7", "7M7", "1m7", "b2m7", "2m7",
+        "b3m7", "3m7", "4m7", "b5m7", "5m7", "b6m7", "6m7", "b7m7", "7m7", "1min7", "2min7",
+        "3min7", "4min7", "5min7", "6min7", "7min7", "1m7b5", "2m7b5", "3m7b5", "4m7b5", "5m7b5",
+        "6m7b5", "7m7b5", "1ø7", "2ø7", "3ø7", "4ø7", "5ø7", "6ø7", "7ø7", "1dim7", "2dim7",
+        "3dim7", "4dim7", "5dim7", "6dim7", "7dim7", "17sus4", "27sus4", "37sus4", "47sus4",
+        "57sus4", "67sus4", "77sus4", "17sus2", "27sus2", "37sus2", "47sus2", "57sus2", "67sus2",
+        "77sus2", "17b5", "27b5", "37b5", "47b5", "57b5", "67b5", "77b5", "17#5", "27#5", "37#5",
+        "47#5", "57#5", "67#5", "77#5", "17b9", "27b9", "37b9", "47b9", "57b9", "67b9", "77b9",
+        "17#9", "27#9", "37#9", "47#9", "57#9", "67#9", "77#9", "17#11", "27#11", "37#11", "47#11",
+        "57#11", "67#11", "77#11", "17b13", "27b13", "37b13", "47b13", "57b13", "67b13", "77b13",
+        "17alt", "27alt", "57alt", "16", "26", "36", "46", "56", "66", "76", "1m6", "2m6", "3m6",
+        "4m6", "5m6", "6m6", "7m6", "16add9", "26add9", "36add9", "46add9", "56add9", "66add9",
+        "76add9", "1m6add9", "2m6add9", "3m6add9", "4m6add9", "5m6add9", "6m6add9", "7m6add9",
+        "19", "29", "39", "49", "59", "69", "79", "1maj9", "2maj9", "3maj9", "4maj9", "5maj9",
+        "6maj9", "7maj9", "1m9", "2m9", "3m9", "4m9", "5m9", "6m9", "7m9", "1add9", "2add9",
+        "3add9", "4add9", "5add9", "6add9", "7add9", "1add2", "2add2", "3add2", "4add2", "5add2",
+        "6add2", "7add2", "1maj9#11", "5maj9#11", "111", "211", "311", "411", "511", "611", "711",
+        "1maj11", "2maj11", "3maj11", "4maj11", "5maj11", "6maj11", "7maj11", "1m11", "2m11",
+        "3m11", "4m11", "5m11", "6m11", "7m11", "113", "213", "313", "413", "513", "613", "713",
+        "1maj13", "2maj13", "3maj13", "4maj13", "5maj13", "6maj13", "7maj13", "1m13", "2m13",
+        "3m13", "4m13", "5m13", "6m13", "7m13", "1maj7#11", "2maj7#11", "3maj7#11", "4maj7#11",
+        "5maj7#11", "6maj7#11", "7maj7#11", "1maj7b5", "4maj7b5", "1mmaj7", "2mmaj7", "3mmaj7",
+        "4mmaj7", "5mmaj7", "6mmaj7", "7mmaj7", "1m7#5", "2m7#5", "3m7#5", "1/3", "1/4", "1/5",
+        "1/6", "1/7", "1maj7/3", "1maj7/5", "1m/b3", "1m/5", "17/3", "17/5", "1sus4/5", "1sus2/5",
+        "1add9/3", "1add9/5", "2/b5", "2/6", "2/7", "3m/5", "3m/7", "4/6", "4/1", "5/7", "5/2",
+        "5/4", "6m/1", "6m/3", "6m/5", "7m/2", "7m/b5", "b7/2", "b7/4", "b3/5", "b3/b7", "b6/1",
+        "b6/b3", "b2/4", "b2/b6", "b5/b7", "b5/b2", "b5m/b2", "b5m/6", "b2/3", "(1)", "(6m)",
+        "(4)", "(5)", "(1/5)", "(6m/3)", "1:4", "6m:2", "4:1", "5:1.5", "5:2.25", "2:1.5",
+    ];
+
+    #[test]
+    fn nashville_chord_reference_all_parse_with_key_c() {
+        let key = SimpleChord::try_from("C").unwrap();
+        assert!(
+            NASHVILLE_CHORD_REFERENCE.len() >= 200,
+            "reference list should cover hundreds of unique symbols"
+        );
+        for sym in NASHVILLE_CHORD_REFERENCE {
+            Chord::from_str_with_key(sym, Some(&key))
+                .unwrap_or_else(|e| panic!("failed to parse {sym:?}: {e}"));
+        }
+    }
+
+    #[test]
+    fn nashville_chord_reference_format_roundtrip_key_c() {
+        let key = SimpleChord::try_from("C").unwrap();
+        let rep = ChordRepresentation::Nashville;
+        for sym in [
+            "1", "4", "5", "6m", "b7", "1/5", "6m/1", "(4)", "17", "1maj7", "2m7", "17sus4",
+        ] {
+            let c = Chord::from_str_with_key(sym, Some(&key))
+                .unwrap_or_else(|e| panic!("parse {sym:?}: {e}"));
+            assert_eq!(
+                c.format(&key, &rep),
+                sym,
+                "Nashville round-trip for {sym:?}"
+            );
+        }
     }
 
     #[test]
