@@ -4,9 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+---
+
+## [0.11.0] — Keyed Nashville input & HTML sections
+
 ### ✨ Features
 
-- **Keyed Nashville numeral input** — With `{key: …}`, chord roots written as Nashville numerals (`[1]`, `[b7]`, `[6m/1]`, …) are parsed as scale degrees relative to the key. Letter roots (e.g. `[C]`, `[F#]`) continue to use absolute pitch-class parsing. Chromatic Nashville spellings `b2`–`b7` are accepted on input. `chord.rs` tests parse a hardcoded reference vocabulary of common worship symbols.
+- **Keyed Nashville numeral input** — With `{key: …}`, chord roots written as Nashville numerals (`[1]`, `[b7]`, `[6m/1]`, …) are parsed as scale degrees relative to the key. Letter roots (e.g. `[C]`, `[F#]`) continue to use absolute pitch-class parsing. Chromatic Nashville spellings `b2`–`b7` are accepted on input.
+- **HTML section rendering** — New `FormatHTML::format_html_sections` returns each song section as HTML plus CSS, without the full page wrapper — useful for embedding sections in custom layouts. `format_html_page` now reuses the same section rendering path.
 
 ---
 
@@ -175,6 +180,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.11.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.11.0
 [0.10.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.10.0
 [0.9.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.9.0
 [0.8.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.8.3
