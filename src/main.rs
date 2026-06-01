@@ -7,7 +7,7 @@ use chordlib::types::{ChordRepresentation, SimpleChord};
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// The input song file (ChordPro)
+    /// The input song file (ChordPro, Worship Pro, or Ultimate Guitar HTML)
     pub input: String,
     /// A boolean flag if the song should be rendered to the stdout
     #[arg(short, long, default_value_t = false)]
@@ -42,6 +42,9 @@ fn main() -> Result<(), Error> {
         || args.input.ends_with(".chopro")
     {
         chordlib::inputs::chord_pro::load(&args.input)
+    } else if args.input.ends_with(".html") {
+        let html = std::fs::read_to_string(&args.input)?;
+        chordlib::inputs::ultimate_guitar::load_html(&html)
     } else {
         Err(Error::Other(format!(
             "unknown input format ({})",
