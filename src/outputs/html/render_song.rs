@@ -125,10 +125,7 @@ impl FormatHTML for &Song {
             |template, section| template.section(section),
         );
 
-        (
-            page_template.render().unwrap(),
-            self.html_css(scale),
-        )
+        (page_template.render().unwrap(), self.html_css(scale))
     }
 
     fn format_html(

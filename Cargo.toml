@@ -12,11 +12,11 @@ keywords = ["chords", "lyrics", "guitar", "chordpro", "songs"]
 categories = ["multimedia::audio", "command-line-utilities"]
 
 [dependencies]
-clap = { version = "4.6.0", features = ["derive"], optional = true }
-scraper = { version = "0.25.0", optional = true }
+clap = { version = "4.6.1", features = ["derive"], optional = true }
+scraper = { version = "0.27.0", optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-askama = "0.15.4"
+serde_json = "1.0.150"
+askama = "0.16.0"
 lazy_static = "1.5.0"
 
 [features]
