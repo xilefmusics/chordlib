@@ -6,6 +6,23 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.12.0] — German H alias, CLI HTML input & HTML fix
+
+### ✨ Features
+
+- **German H alias for B** — German chord charts use H for B natural and Hm for B minor. Parse `H` like `B` in roots, keys, and slash bass so Worship Pro imports succeed; output still uses English B spellings (#64).
+- **CLI HTML input** — The `chordlib` binary accepts Ultimate Guitar `.html` song files via the existing HTML parser (#62).
+
+### 🐛 Fixes
+
+- **HTML multi-byte whitespace** — Line rendering no longer panics on UTF-8 whitespace such as U+2005 (FOUR-PER-EM SPACE) when splitting word spans (#63).
+
+### 🛠️ Other
+
+- **Dependencies** — Updated clap, scraper, serde_json, and askama (#62).
+
+---
+
 ## [0.11.0] — Keyed Nashville input & HTML sections
 
 ### ✨ Features
@@ -180,6 +197,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.12.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.0
 [0.11.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.11.0
 [0.10.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.10.0
 [0.9.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.9.0
