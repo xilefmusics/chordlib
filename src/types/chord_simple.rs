@@ -18,7 +18,7 @@ impl TryFrom<char> for SimpleChord {
     fn try_from(c: char) -> Result<Self, Self::Error> {
         match c {
             'A' => Ok(Self::new(0)),
-            'B' => Ok(Self::new(2)),
+            'B' | 'H' => Ok(Self::new(2)),
             'C' => Ok(Self::new(3)),
             'D' => Ok(Self::new(5)),
             'E' => Ok(Self::new(7)),

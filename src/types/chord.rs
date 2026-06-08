@@ -784,4 +784,24 @@ mod test {
             );
         }
     }
+
+    /// German notation uses H for English B (B natural); Hm is B minor.
+    #[test]
+    fn german_h_alias_parses_like_b() {
+        let key = SimpleChord::default();
+        let h = Chord::from_str("H").expect("parse H");
+        let b = Chord::from_str("B").unwrap();
+        assert_eq!(h, b);
+        assert_eq!(fmt_default("H", &key), "B");
+
+        let hm = Chord::from_str("Hm").expect("parse Hm");
+        let bm = Chord::from_str("Bm").unwrap();
+        assert_eq!(hm, bm);
+        assert_eq!(fmt_default("Hm", &key), "Bm");
+
+        let h_slash = Chord::from_str("G/H").expect("parse G/H");
+        let g_b = Chord::from_str("G/B").unwrap();
+        assert_eq!(h_slash, g_b);
+        assert_eq!(fmt_default("G/H", &key), "G/B");
+    }
 }

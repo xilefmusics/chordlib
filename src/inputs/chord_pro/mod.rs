@@ -1022,4 +1022,26 @@ mod tests {
             .collect();
         assert_eq!(numeral_as_letters, letter_line);
     }
+
+    /// Worship Pro files may use German H / Hm instead of B / Bm.
+    #[test]
+    fn worship_pro_german_h_chords() {
+        let input = r#"{title: German}
+{key: G}
+{section: Verse}
+[G]Zeile mit [Hm]Akkord
+"#;
+        let song = load_string(input).expect("parse German H chords");
+        use crate::types::ChordRepresentation;
+
+        let key = song.key.as_ref().unwrap();
+        let default = ChordRepresentation::Default;
+        let chords: Vec<String> = song.sections[0].lines[0]
+            .parts
+            .iter()
+            .filter_map(|p| p.chord.as_ref())
+            .map(|c| c.format(key, &default).to_string())
+            .collect();
+        assert_eq!(chords, ["G", "Bm"]);
+    }
 }
