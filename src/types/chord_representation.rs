@@ -188,7 +188,7 @@ pub fn symbol_to_pitch_class(symbol: &str) -> Result<u8, Error> {
     Ok(match symbol {
         "A" | "1" | "7#" => 0,
         "A#" | "Bb" | "1#" | "b2" => 1,
-        "B" | "Cb" | "2" => 2,
+        "B" | "H" | "Cb" | "2" => 2,
         "C" | "B#" | "2#" | "b3" => 3,
         "C#" | "Db" | "3" => 4,
         "D" | "4" | "3#" => 5,
