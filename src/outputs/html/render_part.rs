@@ -50,7 +50,11 @@ pub fn render_part(
         }
 
         if let Some(start) = start_word_position {
-            let (before_start, after_start) = text.split_at(start + 1);
+            let after_whitespace = text[start..]
+                .chars()
+                .next()
+                .map_or(start + 1, |c| start + c.len_utf8());
+            let (before_start, after_start) = text.split_at(after_whitespace);
             text = after_start;
 
             result.push_str(before_start);

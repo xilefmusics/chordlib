@@ -349,4 +349,19 @@ mod tests {
                 .collect::<String>()
         );
     }
+
+    /// U+2005 (FOUR-PER-EM SPACE) is Zs whitespace; splitting word spans must not assume
+    /// a single-byte space when the next chord follows immediately.
+    #[test]
+    fn html_four_per_em_space_inside_word_does_not_panic() {
+        let mid_space = '\u{2005}';
+        let input = format!("{{title: T}}\n{{key: C}}\n{{section: V}}\n[C]a{mid_space}b[D]c\n");
+        let song = load_string(&input).expect("parse");
+        let rep = ChordRepresentation::Default;
+        let html = (&song).format_html(None, Some(&rep), None, None);
+
+        assert!(html.contains(r#"<span class="chord">C</span>"#));
+        assert!(html.contains(r#"<span class="chord">D</span>"#));
+        assert!(html.contains("class=\"word\""));
+    }
 }
