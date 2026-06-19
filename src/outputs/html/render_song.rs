@@ -220,6 +220,25 @@ mod tests {
     }
 
     #[test]
+    fn format_html_sections_falls_back_to_primary_language_text() {
+        let input = r#"{title: Fallback}
+{key: C}
+{language: de}
+{language2: en}
+{section: Verse}
+[C]Hallo
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let (sections, _) = (&song).format_html_sections(None, Some(&rep), Some(1), None);
+
+        assert_eq!(sections.len(), 1);
+        assert!(sections[0].contains("Hallo"));
+        assert!(!sections[0].contains("<span class=\"text\"> </span>"));
+    }
+
+    #[test]
     fn single_title_used_for_all_languages() {
         let input = r#"{title: Single}
 {key: C}

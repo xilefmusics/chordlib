@@ -25,8 +25,10 @@ pub fn render_part(
         result.push_str("<span class=\"part\">");
     }
 
-    if let Some(text) = part.languages.get(language).filter(|t| !t.is_empty()) {
-        let mut text = text.as_str();
+    let text = part.text_for_language(language);
+
+    if !text.is_empty() {
+        let mut text = text;
         text_chars = text.chars().count();
 
         if let Some(end) = end_word_position {

@@ -79,11 +79,7 @@ impl<'a> LineRenderer<'a> {
 
     fn update_next_part(&mut self) {
         self.next_part = self.parts.next().map(|p| {
-            let next_text = p
-                .languages
-                .get(self.language)
-                .map(String::as_str)
-                .unwrap_or("");
+            let next_text = p.text_for_language(self.language);
             let mut first = None;
             let mut last = None;
             let mut starts_with = false;
