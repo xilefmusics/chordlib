@@ -129,4 +129,26 @@ mod tests {
         assert!(rendered.contains("Hallo"));
         assert!(!rendered.contains("()"));
     }
+
+    #[test]
+    fn worship_pro_export_keeps_multilingual_lines_separate() {
+        let input = r#"{title: Ohne Titel}
+{key: A}
+{language: de}
+{language2: en}
+{section: Chorus}
+Zeile 1
+&Line 1
+Zeile 2
+Zeile 3
+&Line 3
+{comment: riff 1-2-3-4}"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let rendered = (&song).format_chord_pro(None, Some(&rep), None, true);
+        let expected = "{title: Ohne Titel}\n{key: A}\n{language: de}\n{language2: en}\n{section: Chorus}\nZeile 1\n&Line 1\nZeile 2\nZeile 3\n&Line 3\n{comment: riff 1-2-3-4}\n";
+
+        assert_eq!(rendered, expected);
+    }
 }
