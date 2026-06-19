@@ -85,6 +85,14 @@ impl Part {
             .unwrap_or("")
     }
 
+    /// Returns the text at the requested language index without fallback.
+    pub fn text_for_language_exact(&self, language: usize) -> &str {
+        self.languages
+            .get(language)
+            .map(String::as_str)
+            .unwrap_or("")
+    }
+
     pub fn move_chord_to_next_vowel(mut self, mut prev: Self) -> (Self, Self) {
         for language in 0..self.languages.len().min(prev.languages.len()) {
             let text = &self.languages[language];
@@ -245,5 +253,16 @@ mod tests {
         };
 
         assert_eq!(part.text_for_language(1), "");
+    }
+
+    #[test]
+    fn text_for_language_exact_does_not_fallback() {
+        let part = Part {
+            chord: None,
+            languages: vec!["Hallo".to_string()],
+            comment: false,
+        };
+
+        assert_eq!(part.text_for_language_exact(1), "");
     }
 }
