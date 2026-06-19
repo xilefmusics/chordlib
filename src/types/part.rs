@@ -71,6 +71,20 @@ pub struct Part {
 }
 
 impl Part {
+    /// Returns the text for a language index, falling back to the first language.
+    ///
+    /// If the requested slot is missing or empty, the primary language (index 0)
+    /// is used instead. This keeps partially translated lines visible rather than
+    /// rendering them as blanks.
+    pub fn text_for_language(&self, language: usize) -> &str {
+        self.languages
+            .get(language)
+            .filter(|text| !text.is_empty())
+            .map(String::as_str)
+            .or_else(|| self.languages.first().map(String::as_str))
+            .unwrap_or("")
+    }
+
     pub fn move_chord_to_next_vowel(mut self, mut prev: Self) -> (Self, Self) {
         for language in 0..self.languages.len().min(prev.languages.len()) {
             let text = &self.languages[language];
@@ -182,5 +196,54 @@ impl TryFrom<(&str, &str)> for Part {
             languages: vec![value.1.to_string()],
             comment: false,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_for_language_uses_requested_language_when_present() {
+        let part = Part {
+            chord: None,
+            languages: vec!["Hallo".to_string(), "Hello".to_string()],
+            comment: false,
+        };
+
+        assert_eq!(part.text_for_language(1), "Hello");
+    }
+
+    #[test]
+    fn text_for_language_falls_back_to_primary_when_missing() {
+        let part = Part {
+            chord: None,
+            languages: vec!["Hallo".to_string()],
+            comment: false,
+        };
+
+        assert_eq!(part.text_for_language(1), "Hallo");
+    }
+
+    #[test]
+    fn text_for_language_falls_back_to_primary_when_requested_slot_is_empty() {
+        let part = Part {
+            chord: None,
+            languages: vec!["Hallo".to_string(), String::new()],
+            comment: false,
+        };
+
+        assert_eq!(part.text_for_language(1), "Hallo");
+    }
+
+    #[test]
+    fn text_for_language_returns_empty_when_no_text_exists() {
+        let part = Part {
+            chord: None,
+            languages: vec![String::new(), String::new()],
+            comment: false,
+        };
+
+        assert_eq!(part.text_for_language(1), "");
     }
 }

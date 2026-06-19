@@ -46,7 +46,7 @@ impl FormatOutputLines for &Line {
                     )
                 );
             }
-            text_line = format!("{}{}", text_line, part.languages[language]);
+            text_line = format!("{}{}", text_line, part.text_for_language(language));
         }
 
         let mut result = Vec::default();
@@ -90,5 +90,34 @@ impl FormatOutputLines for &Song {
             .iter()
             .flat_map(|section| section.format_output_lines(Some(key), representation, language))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::outputs::FormatRender;
+    use crate::types::{Line, Part, Section, Song};
+
+    #[test]
+    fn format_render_uses_primary_text_as_fallback_for_missing_language() {
+        let song = Song {
+            sections: vec![Section {
+                title: "Verse".to_string(),
+                lines: vec![Line {
+                    parts: vec![Part {
+                        chord: None,
+                        languages: vec!["Hallo".to_string()],
+                        comment: false,
+                    }],
+                }],
+                repeat_count: 1,
+            }],
+            ..Song::default()
+        };
+
+        let rendered = song.format_render(None, None, Some(1));
+
+        assert!(rendered.contains("Hallo"));
+        assert!(!rendered.contains("\x1b[32m\x1b[0m"));
     }
 }

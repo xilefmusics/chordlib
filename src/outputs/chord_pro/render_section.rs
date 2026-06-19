@@ -105,3 +105,28 @@ impl FormatChordPro for &Section {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::inputs::chord_pro::load_string;
+    use crate::outputs::FormatChordPro;
+
+    #[test]
+    fn format_chord_pro_falls_back_to_primary_language_text() {
+        let input = r#"{title: Fallback}
+{key: C}
+{language: de}
+{language2: en}
+{section: Verse}
+[C]Hallo
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let rendered = (&song).format_chord_pro(None, Some(&rep), Some(1), false);
+
+        assert!(rendered.contains("Hallo"));
+        assert!(!rendered.contains("()"));
+    }
+}
