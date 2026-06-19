@@ -5,6 +5,7 @@ pub fn render_part(
     key: &SimpleChord,
     representation: &ChordRepresentation,
     language: usize,
+    use_primary_fallback: bool,
     mut start_word_position: Option<usize>,
     end_word_position: Option<usize>,
 ) -> (String, usize, usize) {
@@ -25,7 +26,11 @@ pub fn render_part(
         result.push_str("<span class=\"part\">");
     }
 
-    let text = part.text_for_language(language);
+    let text = if use_primary_fallback {
+        part.text_for_language(language)
+    } else {
+        part.text_for_language_exact(language)
+    };
 
     if !text.is_empty() {
         let mut text = text;

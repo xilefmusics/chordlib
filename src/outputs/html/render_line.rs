@@ -10,51 +10,70 @@ struct LineRenderer<'a> {
     key: &'a SimpleChord,
     representation: &'a ChordRepresentation,
     language: usize,
+    use_primary_fallback: bool,
 }
 
 impl<'a> Iterator for LineRenderer<'a> {
     type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (part, first, last, _, ends_with) = self.next_part?;
-        self.update_next_part();
+        loop {
+            let (part, first, last, _, ends_with) = self.next_part?;
+            self.update_next_part();
 
-        let next_starts_with = self
-            .next_part
-            .is_some_and(|(_, _, _, starts_with, _)| starts_with);
+            let text = if self.use_primary_fallback {
+                part.text_for_language(self.language)
+            } else {
+                part.text_for_language_exact(self.language)
+            };
 
-        let inside_word = !ends_with && !next_starts_with && self.next_part.is_some();
+            if !self.use_primary_fallback
+                && text.is_empty()
+                && part.chord.is_none()
+                && !part.comment
+            {
+                self.inside_word = false;
+                continue;
+            }
 
-        let end = if self.inside_word && first.is_some() {
-            first
-        } else {
-            None
-        };
-        let start = if inside_word && last.is_some() {
-            last
-        } else {
-            None
-        };
+            let next_starts_with = self
+                .next_part
+                .is_some_and(|(_, _, _, starts_with, _)| starts_with);
 
-        self.inside_word = inside_word;
+            let inside_word = !ends_with && !next_starts_with && self.next_part.is_some();
 
-        let (part, text_chars, chord_chars) = render_part::render_part(
-            part,
-            self.key,
-            self.representation,
-            self.language,
-            start,
-            end,
-        );
+            let end = if self.inside_word && first.is_some() {
+                first
+            } else {
+                None
+            };
+            let start = if inside_word && last.is_some() {
+                last
+            } else {
+                None
+            };
 
-        Some((
-            part,
-            Self::suffix(
-                self.next_part.is_some(),
-                inside_word,
-                chord_chars as i32 - text_chars as i32 + 1,
-            ),
-        ))
+            self.inside_word = inside_word;
+
+            let (part, text_chars, chord_chars) = render_part::render_part(
+                part,
+                self.key,
+                self.representation,
+                self.language,
+                self.use_primary_fallback,
+                start,
+                end,
+            );
+
+            return Some((
+                part,
+                Self::suffix(
+                    self.next_part.is_some(),
+                    inside_word,
+                    chord_chars as i32 - text_chars as i32 + 1,
+                ),
+            ));
+        }
     }
 }
 
@@ -65,6 +84,13 @@ impl<'a> LineRenderer<'a> {
         representation: &'a ChordRepresentation,
         language: usize,
     ) -> Self {
+        // If this line contains any text for the requested language, render that exact
+        // translation and skip empty primary-only parts. Otherwise fall back to the primary.
+        let use_primary_fallback = !line
+            .parts
+            .iter()
+            .any(|part| !part.text_for_language_exact(language).is_empty());
+
         let mut s = Self {
             parts: line.parts.iter(),
             next_part: None,
@@ -72,6 +98,7 @@ impl<'a> LineRenderer<'a> {
             key,
             representation,
             language,
+            use_primary_fallback,
         };
         s.update_next_part();
         s
@@ -79,7 +106,11 @@ impl<'a> LineRenderer<'a> {
 
     fn update_next_part(&mut self) {
         self.next_part = self.parts.next().map(|p| {
-            let next_text = p.text_for_language(self.language);
+            let next_text = if self.use_primary_fallback {
+                p.text_for_language(self.language)
+            } else {
+                p.text_for_language_exact(self.language)
+            };
             let mut first = None;
             let mut last = None;
             let mut starts_with = false;
