@@ -239,6 +239,32 @@ mod tests {
     }
 
     #[test]
+    fn format_html_sections_prefers_exact_translation_when_present_on_line() {
+        let input = r#"{title: Ohne Titel}
+{key: A}
+{language: de}
+{language2: en}
+{section: Chorus}
+Zeile 1
+&Line 1
+Zeile 2
+Zeile 3
+&Line 3
+{comment: riff 1-2-3-4}
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let (sections, _) = (&song).format_html_sections(None, Some(&rep), Some(1), None);
+
+        assert_eq!(sections.len(), 1);
+        assert!(sections[0].contains("Line 1"), "{}", sections[0]);
+        assert!(sections[0].contains("Line 3"), "{}", sections[0]);
+        assert!(!sections[0].contains("Zeile 1Line 1"), "{}", sections[0]);
+        assert!(!sections[0].contains("Zeile 3Line 3"), "{}", sections[0]);
+    }
+
+    #[test]
     fn single_title_used_for_all_languages() {
         let input = r#"{title: Single}
 {key: C}
