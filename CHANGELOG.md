@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.12.1] — Primary-language fallback for missing translations
+
+### 🐛 Fixes
+
+- **Line translation fallback** — When a requested line translation is missing or empty, renderers now fall back to the primary language instead of dropping the text. (#65)
+
+---
+
 ## [0.12.0] — German H alias, CLI HTML input & HTML fix
 
 ### ✨ Features
