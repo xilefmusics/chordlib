@@ -115,14 +115,33 @@ where
                     }
                 }
 
-                let mut languages = vec![String::new(); new_lang_idx.saturating_add(1)];
-                languages[new_lang_idx] = rest.to_string();
+                let merge_into_single_text_part = last_line.parts.len() == 1
+                    && last_line.parts[0].chord.is_none()
+                    && !last_line.parts[0].comment;
 
-                last_line.parts.push(Part {
-                    chord: None,
-                    languages,
-                    comment: false,
-                });
+                if merge_into_single_text_part {
+                    let part = &mut last_line.parts[0];
+                    if part.languages.len() < new_lang_idx.saturating_add(1) {
+                        part.languages
+                            .resize(new_lang_idx.saturating_add(1), String::new());
+                    }
+                    part.languages[new_lang_idx] = rest.to_string();
+                } else if last_line.parts.iter().any(|p| p.chord.is_some())
+                    && last_line.parts.len() > 1
+                {
+                    return Err(Error::Parse(
+                        "Worship Pro &-line chord sequence must match previous line".into(),
+                    ));
+                } else {
+                    let mut languages = vec![String::new(); new_lang_idx.saturating_add(1)];
+                    languages[new_lang_idx] = rest.to_string();
+
+                    last_line.parts.push(Part {
+                        chord: None,
+                        languages,
+                        comment: false,
+                    });
+                }
             } else {
                 let new_parts: Vec<Part> = make_iter(rest).collect::<Result<Vec<Part>, Error>>()?;
 
@@ -829,6 +848,20 @@ mod tests {
     }
 
     #[test]
+    fn worship_pro_ampersand_text_only_line_merges_languages() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+Zeile 1
+&Line 1
+"#;
+        let song = load_string(input).expect("parse");
+        let line = &song.sections[0].lines[0];
+        assert_eq!(line.parts.len(), 1);
+        assert_eq!(line.parts[0].languages, vec!["Zeile 1", "Line 1"]);
+    }
+
+    #[test]
     fn worship_pro_ampersand_free_translation_without_chords() {
         let input = r#"{title: Test}
 {key: C}
@@ -861,10 +894,57 @@ mod tests {
         let song = load_string(input).expect("parse");
         let line = &song.sections[0].lines[0];
         assert_eq!(line.parts.len(), 2);
-        assert_eq!(line.parts[0].languages.first().unwrap(), "Hallo ");
-        assert_eq!(line.parts[0].languages.get(1).unwrap(), "Hello ");
-        assert_eq!(line.parts[1].languages.first().unwrap(), "Welt");
-        assert_eq!(line.parts[1].languages.get(1).unwrap(), "World");
+        assert_eq!(line.parts[0].languages, vec!["Hallo ", "Hello "]);
+        assert_eq!(line.parts[1].languages, vec!["Welt", "World"]);
+    }
+
+    #[test]
+    fn worship_pro_ampersand_multi_part_matching_chords_three_languages() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[C]Hallo [G]Welt
+&[C]Hello [G]World
+&[C]Bonjour [G]Monde
+"#;
+        let song = load_string(input).expect("parse");
+        let line = &song.sections[0].lines[0];
+        assert_eq!(line.parts.len(), 2);
+        assert_eq!(
+            line.parts[0].languages,
+            vec!["Hallo ", "Hello ", "Bonjour "]
+        );
+        assert_eq!(line.parts[1].languages, vec!["Welt", "World", "Monde"]);
+    }
+
+    #[test]
+    fn worship_pro_ampersand_multi_part_free_translation_without_chords_is_error() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[C]Hallo [G]Welt
+&Hello World
+"#;
+        let err = load_string(input).expect_err("parse");
+        assert!(
+            err.to_string().contains("chord sequence must match"),
+            "expected chord mismatch error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn worship_pro_ampersand_multi_part_missing_chord_on_translation_line_is_error() {
+        let input = r#"{title: Test}
+{key: C}
+{section: Verse}
+[C]Hallo [G]Welt
+&[C]Hello
+"#;
+        let err = load_string(input).expect_err("parse");
+        assert!(
+            err.to_string().contains("chord sequence must match"),
+            "expected chord mismatch error, got: {err}"
+        );
     }
 
     #[test]

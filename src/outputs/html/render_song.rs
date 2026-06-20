@@ -318,6 +318,40 @@ mod tests {
     }
 
     #[test]
+    fn html_worship_pro_free_translation_lines_do_not_mix_languages() {
+        let input = r#"{title: Ohne Titel}
+{key: A}
+{language: de}
+{language2: en}
+{section: Chrous}
+{comment: riff}
+Zeile 1
+&Line 1
+Zeile 2
+Zeile 3
+&Line 3
+{repeat}
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let html_de = (&song).format_html(None, Some(&rep), None, None);
+        let html_en = (&song).format_html(None, Some(&rep), Some(1), None);
+
+        assert!(html_de.contains("Zeile 1"));
+        assert!(html_de.contains("Zeile 2"));
+        assert!(html_de.contains("Zeile 3"));
+        assert!(!html_de.contains("Line 1"));
+        assert!(!html_de.contains("Line 3"));
+
+        assert!(html_en.contains("Line 1"));
+        assert!(html_en.contains("Zeile 2"));
+        assert!(html_en.contains("Line 3"));
+        assert!(!html_en.contains("Zeile 1"));
+        assert!(!html_en.contains("Zeile 3"));
+    }
+
+    #[test]
     fn html_six_eight_chord_only_full_bar_is_single_chord_token() {
         let input = r#"{title: Six Eight}
 {key: C}
