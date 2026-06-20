@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.12.4] — Worship Pro text-only translation import
+
+### 🐛 Fixes
+
+- **Worship Pro text-only `&` lines** — Chord-free translation lines after a single text-only lyric now merge into the same part's `languages` vector (e.g. `Zeile 1` + `&Line 1`), fixing mixed-language HTML output. (#70)
+- **Worship Pro multi-part `&` lines** — Reject chord-free `&` translations when the previous line has multiple chord parts; translations must repeat the exact chord sequence. (#70)
+
+---
+
 ## [0.12.3] — Simplified line translation fallback
 
 ### 🐛 Fixes
@@ -17,6 +26,8 @@ All notable changes to this project are documented in this file.
 - **Removed per-line fallback heuristics** — Drops `text_for_language_exact` and line-level fallback selection from 0.12.1–0.12.2. Worship Pro multi-language export is unchanged: each `&` line remains a separate language slot.
 
 ---
+
+## [0.12.2] — Worship Pro multilingual export fix
 
 ### 🐛 Fixes
 
@@ -223,6 +234,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.12.4]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.4
 [0.12.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.3
 [0.12.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.2
 [0.12.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.1
