@@ -95,29 +95,43 @@ impl FormatOutputLines for &Song {
 
 #[cfg(test)]
 mod tests {
-    use crate::outputs::FormatRender;
-    use crate::types::{Line, Part, Section, Song};
+    use super::*;
+    use crate::inputs::chord_pro::load_string;
+    use crate::types::ChordRepresentation;
 
     #[test]
-    fn format_render_uses_primary_text_as_fallback_for_missing_language() {
-        let song = Song {
-            sections: vec![Section {
-                title: "Verse".to_string(),
-                lines: vec![Line {
-                    parts: vec![Part {
-                        chord: None,
-                        languages: vec!["Hallo".to_string()],
-                        comment: false,
-                    }],
-                }],
-                repeat_count: 1,
-            }],
-            ..Song::default()
-        };
+    fn format_output_lines_partial_translation_falls_back_to_primary_language() {
+        let input = r#"{title: Test}
+{key: C}
+{language: de}
+{language2: en}
+{section: Verse}
+[C]Nur Deutsch
+&[C]Only English
+[C]Auch nur Deutsch
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
 
-        let rendered = song.format_render(None, None, Some(1));
+        let lines_lang0 = (&song.sections[0]).format_output_lines(None, Some(&rep), None);
+        let lines_lang1 = (&song.sections[0]).format_output_lines(None, Some(&rep), Some(1));
 
-        assert!(rendered.contains("Hallo"));
-        assert!(!rendered.contains("\x1b[32m\x1b[0m"));
+        let text_lang0: Vec<&str> = lines_lang0
+            .iter()
+            .filter_map(|l| match l {
+                OutputLine::Text(t) => Some(t.as_str()),
+                _ => None,
+            })
+            .collect();
+        let text_lang1: Vec<&str> = lines_lang1
+            .iter()
+            .filter_map(|l| match l {
+                OutputLine::Text(t) => Some(t.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(text_lang0, vec!["Nur Deutsch", "Auch nur Deutsch"]);
+        assert_eq!(text_lang1, vec!["Only English", "Auch nur Deutsch"]);
     }
 }

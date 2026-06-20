@@ -71,28 +71,6 @@ pub struct Part {
 }
 
 impl Part {
-    /// Returns the text for a language index, falling back to the first language.
-    ///
-    /// If the requested slot is missing or empty, the primary language (index 0)
-    /// is used instead. This keeps partially translated lines visible rather than
-    /// rendering them as blanks.
-    pub fn text_for_language(&self, language: usize) -> &str {
-        self.languages
-            .get(language)
-            .filter(|text| !text.is_empty())
-            .map(String::as_str)
-            .or_else(|| self.languages.first().map(String::as_str))
-            .unwrap_or("")
-    }
-
-    /// Returns the text at the requested language index without fallback.
-    pub fn text_for_language_exact(&self, language: usize) -> &str {
-        self.languages
-            .get(language)
-            .map(String::as_str)
-            .unwrap_or("")
-    }
-
     pub fn move_chord_to_next_vowel(mut self, mut prev: Self) -> (Self, Self) {
         for language in 0..self.languages.len().min(prev.languages.len()) {
             let text = &self.languages[language];
@@ -189,6 +167,58 @@ impl Part {
             comment: false,
         }
     }
+
+    /// Returns the text for the given language index, falling back to the first
+    /// language when the requested entry is missing or empty.
+    pub fn text_for_language(&self, language: usize) -> &str {
+        if let Some(candidate) = self.languages.get(language)
+            && !candidate.is_empty()
+        {
+            return candidate;
+        }
+        self.languages
+            .first()
+            .map(String::as_str)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn part_with_langs(languages: Vec<String>) -> Part {
+        Part {
+            chord: None,
+            languages,
+            comment: false,
+        }
+    }
+
+    #[test]
+    fn text_for_language_uses_requested_index() {
+        let part = part_with_langs(vec!["de".to_string(), "en".to_string()]);
+        assert_eq!(part.text_for_language(0), "de");
+        assert_eq!(part.text_for_language(1), "en");
+    }
+
+    #[test]
+    fn text_for_language_falls_back_to_first_when_missing_or_empty() {
+        let part = part_with_langs(vec!["de".to_string()]);
+        assert_eq!(part.text_for_language(1), "de");
+        assert_eq!(part.text_for_language(5), "de");
+
+        let part_empty_second = part_with_langs(vec!["de".to_string(), String::new()]);
+        assert_eq!(part_empty_second.text_for_language(1), "de");
+    }
+
+    #[test]
+    fn text_for_language_returns_empty_when_all_missing() {
+        let part = part_with_langs(vec![]);
+        assert_eq!(part.text_for_language(0), "");
+        assert_eq!(part.text_for_language(1), "");
+    }
 }
 
 impl TryFrom<(&str, &str)> for Part {
@@ -204,65 +234,5 @@ impl TryFrom<(&str, &str)> for Part {
             languages: vec![value.1.to_string()],
             comment: false,
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn text_for_language_uses_requested_language_when_present() {
-        let part = Part {
-            chord: None,
-            languages: vec!["Hallo".to_string(), "Hello".to_string()],
-            comment: false,
-        };
-
-        assert_eq!(part.text_for_language(1), "Hello");
-    }
-
-    #[test]
-    fn text_for_language_falls_back_to_primary_when_missing() {
-        let part = Part {
-            chord: None,
-            languages: vec!["Hallo".to_string()],
-            comment: false,
-        };
-
-        assert_eq!(part.text_for_language(1), "Hallo");
-    }
-
-    #[test]
-    fn text_for_language_falls_back_to_primary_when_requested_slot_is_empty() {
-        let part = Part {
-            chord: None,
-            languages: vec!["Hallo".to_string(), String::new()],
-            comment: false,
-        };
-
-        assert_eq!(part.text_for_language(1), "Hallo");
-    }
-
-    #[test]
-    fn text_for_language_returns_empty_when_no_text_exists() {
-        let part = Part {
-            chord: None,
-            languages: vec![String::new(), String::new()],
-            comment: false,
-        };
-
-        assert_eq!(part.text_for_language(1), "");
-    }
-
-    #[test]
-    fn text_for_language_exact_does_not_fallback() {
-        let part = Part {
-            chord: None,
-            languages: vec!["Hallo".to_string()],
-            comment: false,
-        };
-
-        assert_eq!(part.text_for_language_exact(1), "");
     }
 }

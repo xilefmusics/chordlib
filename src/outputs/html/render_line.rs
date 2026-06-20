@@ -10,70 +10,51 @@ struct LineRenderer<'a> {
     key: &'a SimpleChord,
     representation: &'a ChordRepresentation,
     language: usize,
-    use_primary_fallback: bool,
 }
 
 impl<'a> Iterator for LineRenderer<'a> {
     type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let (part, first, last, _, ends_with) = self.next_part?;
-            self.update_next_part();
+        let (part, first, last, _, ends_with) = self.next_part?;
+        self.update_next_part();
 
-            let text = if self.use_primary_fallback {
-                part.text_for_language(self.language)
-            } else {
-                part.text_for_language_exact(self.language)
-            };
+        let next_starts_with = self
+            .next_part
+            .is_some_and(|(_, _, _, starts_with, _)| starts_with);
 
-            if !self.use_primary_fallback
-                && text.is_empty()
-                && part.chord.is_none()
-                && !part.comment
-            {
-                self.inside_word = false;
-                continue;
-            }
+        let inside_word = !ends_with && !next_starts_with && self.next_part.is_some();
 
-            let next_starts_with = self
-                .next_part
-                .is_some_and(|(_, _, _, starts_with, _)| starts_with);
+        let end = if self.inside_word && first.is_some() {
+            first
+        } else {
+            None
+        };
+        let start = if inside_word && last.is_some() {
+            last
+        } else {
+            None
+        };
 
-            let inside_word = !ends_with && !next_starts_with && self.next_part.is_some();
+        self.inside_word = inside_word;
 
-            let end = if self.inside_word && first.is_some() {
-                first
-            } else {
-                None
-            };
-            let start = if inside_word && last.is_some() {
-                last
-            } else {
-                None
-            };
+        let (part, text_chars, chord_chars) = render_part::render_part(
+            part,
+            self.key,
+            self.representation,
+            self.language,
+            start,
+            end,
+        );
 
-            self.inside_word = inside_word;
-
-            let (part, text_chars, chord_chars) = render_part::render_part(
-                part,
-                self.key,
-                self.representation,
-                self.language,
-                self.use_primary_fallback,
-                start,
-                end,
-            );
-
-            return Some((
-                part,
-                Self::suffix(
-                    self.next_part.is_some(),
-                    inside_word,
-                    chord_chars as i32 - text_chars as i32 + 1,
-                ),
-            ));
-        }
+        Some((
+            part,
+            Self::suffix(
+                self.next_part.is_some(),
+                inside_word,
+                chord_chars as i32 - text_chars as i32 + 1,
+            ),
+        ))
     }
 }
 
@@ -84,13 +65,6 @@ impl<'a> LineRenderer<'a> {
         representation: &'a ChordRepresentation,
         language: usize,
     ) -> Self {
-        // If this line contains any text for the requested language, render that exact
-        // translation and skip empty primary-only parts. Otherwise fall back to the primary.
-        let use_primary_fallback = !line
-            .parts
-            .iter()
-            .any(|part| !part.text_for_language_exact(language).is_empty());
-
         let mut s = Self {
             parts: line.parts.iter(),
             next_part: None,
@@ -98,7 +72,6 @@ impl<'a> LineRenderer<'a> {
             key,
             representation,
             language,
-            use_primary_fallback,
         };
         s.update_next_part();
         s
@@ -106,11 +79,7 @@ impl<'a> LineRenderer<'a> {
 
     fn update_next_part(&mut self) {
         self.next_part = self.parts.next().map(|p| {
-            let next_text = if self.use_primary_fallback {
-                p.text_for_language(self.language)
-            } else {
-                p.text_for_language_exact(self.language)
-            };
+            let next_text = p.text_for_language(self.language);
             let mut first = None;
             let mut last = None;
             let mut starts_with = false;
@@ -179,4 +148,54 @@ pub fn render_line(
     language: usize,
 ) -> String {
     LineRenderer::new(line, key, representation, language).render()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{Chord, Line, Part};
+    use std::str::FromStr;
+
+    #[test]
+    fn render_line_falls_back_to_primary_language_for_missing_translation() {
+        let line = Line::new(vec![
+            Part {
+                chord: Some(Chord::from_str("C").unwrap()),
+                languages: vec!["Nurdeutsch".to_string()],
+                comment: false,
+            },
+            Part {
+                chord: None,
+                languages: vec!["Auchnurdeutsch".to_string()],
+                comment: false,
+            },
+        ]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+
+        let html = render_line(&line, &key, &rep, 1);
+
+        assert!(html.contains("Nurdeutsch"));
+        assert!(html.contains("Auchnurdeutsch"));
+        assert!(
+            !html.contains("<span class=\"text\"> </span>"),
+            "missing translation must not render empty text placeholder: {html}"
+        );
+    }
+
+    #[test]
+    fn render_line_uses_translation_when_present() {
+        let line = Line::new(vec![Part {
+            chord: Some(Chord::from_str("C").unwrap()),
+            languages: vec!["Nur Deutsch".to_string(), "Only English".to_string()],
+            comment: false,
+        }]);
+        let key = SimpleChord::default();
+        let rep = ChordRepresentation::Default;
+
+        let html_lang1 = render_line(&line, &key, &rep, 1);
+
+        assert!(html_lang1.contains("Only English"));
+        assert!(!html_lang1.contains("Nur Deutsch"));
+    }
 }

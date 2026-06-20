@@ -220,51 +220,6 @@ mod tests {
     }
 
     #[test]
-    fn format_html_sections_falls_back_to_primary_language_text() {
-        let input = r#"{title: Fallback}
-{key: C}
-{language: de}
-{language2: en}
-{section: Verse}
-[C]Hallo
-"#;
-        let song = load_string(input).expect("parse");
-        let rep = ChordRepresentation::Default;
-
-        let (sections, _) = (&song).format_html_sections(None, Some(&rep), Some(1), None);
-
-        assert_eq!(sections.len(), 1);
-        assert!(sections[0].contains("Hallo"));
-        assert!(!sections[0].contains("<span class=\"text\"> </span>"));
-    }
-
-    #[test]
-    fn format_html_sections_prefers_exact_translation_when_present_on_line() {
-        let input = r#"{title: Ohne Titel}
-{key: A}
-{language: de}
-{language2: en}
-{section: Chorus}
-Zeile 1
-&Line 1
-Zeile 2
-Zeile 3
-&Line 3
-{comment: riff 1-2-3-4}
-"#;
-        let song = load_string(input).expect("parse");
-        let rep = ChordRepresentation::Default;
-
-        let (sections, _) = (&song).format_html_sections(None, Some(&rep), Some(1), None);
-
-        assert_eq!(sections.len(), 1);
-        assert!(sections[0].contains("Line 1"), "{}", sections[0]);
-        assert!(sections[0].contains("Line 3"), "{}", sections[0]);
-        assert!(!sections[0].contains("Zeile 1Line 1"), "{}", sections[0]);
-        assert!(!sections[0].contains("Zeile 3Line 3"), "{}", sections[0]);
-    }
-
-    #[test]
     fn single_title_used_for_all_languages() {
         let input = r#"{title: Single}
 {key: C}
@@ -333,6 +288,33 @@ Zeile 3
         assert!(html_lang2.contains(r#"<h1 class="title">Title DE</h1>"#));
         // No third artist specified, so it must fall back to the first artist.
         assert!(html_lang2.contains(r#"<h2 class="subtitle">Artist DE</h2>"#));
+    }
+
+    #[test]
+    fn html_partial_translation_falls_back_to_primary_language() {
+        let input = r#"{title: "Title DE"}
+{title2: "Title EN"}
+{key: C}
+{language: de}
+{language2: en}
+{section: Verse}
+[C]Nur Deutsch
+&[C]Only English
+[C]Auch nur Deutsch
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let html_lang0 = (&song).format_html(None, Some(&rep), None, None);
+        let html_lang1 = (&song).format_html(None, Some(&rep), Some(1), None);
+
+        assert!(html_lang0.contains("Nur Deutsch"));
+        assert!(html_lang0.contains("Auch nur Deutsch"));
+        assert!(!html_lang0.contains("Only English"));
+
+        assert!(html_lang1.contains("Only English"));
+        assert!(html_lang1.contains("Auch nur Deutsch"));
+        assert!(!html_lang1.contains("Nur Deutsch"));
     }
 
     #[test]
