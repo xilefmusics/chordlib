@@ -53,7 +53,7 @@ fn main() -> Result<(), Error> {
     }?;
 
     if let Some(key) = args.key {
-        song.transpose(SimpleChord::new(key));
+        song.apply_key(SimpleChord::new(key));
     }
 
     if args.vowel_move {
@@ -67,7 +67,7 @@ fn main() -> Result<(), Error> {
     if args.render {
         println!(
             "{}",
-            song.format_render(None, representation.as_ref(), args.language, None)?
+            song.format_render(None, representation.as_ref(), args.language)?
         );
     }
 
@@ -86,7 +86,7 @@ fn main() -> Result<(), Error> {
     } else if args.output.ends_with(".html") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_html(None, representation.as_ref(), args.language, None, None)?,
+            (&song).format_html(None, representation.as_ref(), args.language, None)?,
         )?)
     } else if args.output.is_empty() {
         Ok(())

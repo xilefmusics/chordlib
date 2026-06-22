@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::types::{ChordRepresentation, Line, Section, SimpleChord, Song, SongFlowItem};
+use crate::types::{ChordRepresentation, Line, Section, SimpleChord, Song};
 
 pub enum OutputLine {
     Keyword(String),
@@ -13,7 +13,6 @@ pub trait FormatOutputLines {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-        flow: Option<&[SongFlowItem]>,
     ) -> Result<Vec<OutputLine>, Error>;
 }
 
@@ -23,7 +22,6 @@ impl FormatOutputLines for &Line {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-        _flow: Option<&[SongFlowItem]>,
     ) -> Result<Vec<OutputLine>, Error> {
         let mut chord_line = String::default();
         let mut text_line = String::default();
@@ -69,11 +67,10 @@ impl FormatOutputLines for &Section {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-        _flow: Option<&[SongFlowItem]>,
     ) -> Result<Vec<OutputLine>, Error> {
         let mut output = vec![OutputLine::Keyword(self.title.clone())];
         for line in &self.lines {
-            output.extend(line.format_output_lines(key, representation, language, None)?);
+            output.extend(line.format_output_lines(key, representation, language)?);
         }
         Ok(output)
     }
@@ -85,21 +82,14 @@ impl FormatOutputLines for &Song {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-        flow: Option<&[SongFlowItem]>,
     ) -> Result<Vec<OutputLine>, Error> {
         let self_key = self.key.clone().unwrap_or_default();
         let key = key.unwrap_or(&self_key);
-        let (sections, custom_flow) = self.sections_for_flow(flow)?;
         let mut output = Vec::new();
 
-        for section in sections {
-            output.extend((&section).format_output_lines(
-                Some(key),
-                representation,
-                language,
-                None,
-            )?);
-            if custom_flow && let Some(repeat_text) = repeat_label(section.repeat_count) {
+        for section in &self.sections {
+            output.extend((section).format_output_lines(Some(key), representation, language)?);
+            if let Some(repeat_text) = repeat_label(section.repeat_count) {
                 output.push(OutputLine::Text(repeat_text));
             }
         }
@@ -123,9 +113,10 @@ mod tests {
     use crate::types::ChordRepresentation;
     use crate::types::SongFlowItem;
 
-    fn flow_item(title: &str, repeats: u32) -> SongFlowItem {
+    fn flow_item(title: &str, occurrence_index: u32, repeats: u32) -> SongFlowItem {
         SongFlowItem {
             title: title.to_string(),
+            occurrence_index,
             repeats,
         }
     }
@@ -145,10 +136,10 @@ mod tests {
         let rep = ChordRepresentation::Default;
 
         let lines_lang0 = (&song.sections[0])
-            .format_output_lines(None, Some(&rep), None, None)
+            .format_output_lines(None, Some(&rep), None)
             .expect("render");
         let lines_lang1 = (&song.sections[0])
-            .format_output_lines(None, Some(&rep), Some(1), None)
+            .format_output_lines(None, Some(&rep), Some(1))
             .expect("render");
 
         let text_lang0: Vec<&str> = lines_lang0
@@ -171,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn format_output_lines_supports_custom_flow_and_empty_flow_matches_default() {
+    fn format_output_lines_supports_custom_flow_after_apply_flow() {
         let input = r#"{title: Ohne Titel}
 {key: A}
 {section: Tag 1}
@@ -184,42 +175,25 @@ Text 3
 {section: Tag 2}
 {section: Tag 3}
 "#;
-        let song = load_string(input).expect("parse");
+        let mut song = load_string(input).expect("parse");
         let rep = ChordRepresentation::Default;
         let flow = vec![
-            flow_item("Tag 1", 1),
-            flow_item("Tag 2", 1),
-            flow_item("Tag 3", 1),
-            flow_item("Tag 1", 2),
-            flow_item("Tag 3", 1),
-            flow_item("Tag 2", 1),
+            flow_item("Tag 1", 0, 1),
+            flow_item("Tag 2", 0, 1),
+            flow_item("Tag 3", 0, 1),
+            flow_item("Tag 1", 0, 2),
+            flow_item("Tag 3", 0, 1),
+            flow_item("Tag 2", 0, 1),
         ];
 
         let default_lines = (&song)
-            .format_output_lines(None, Some(&rep), None, None)
+            .format_output_lines(None, Some(&rep), None)
             .expect("render");
-        let empty_flow_lines = (&song)
-            .format_output_lines(None, Some(&rep), None, Some(&[]))
-            .expect("render");
-        assert_eq!(default_lines.len(), empty_flow_lines.len());
-        assert_eq!(
-            default_lines
-                .iter()
-                .map(|line| match line {
-                    OutputLine::Keyword(s) | OutputLine::Chord(s) | OutputLine::Text(s) => s,
-                })
-                .collect::<Vec<&String>>(),
-            empty_flow_lines
-                .iter()
-                .map(|line| match line {
-                    OutputLine::Keyword(s) | OutputLine::Chord(s) | OutputLine::Text(s) => s,
-                })
-                .collect::<Vec<&String>>()
-        );
-
+        song.apply_flow(flow).expect("apply flow");
         let custom_lines = (&song)
-            .format_output_lines(None, Some(&rep), None, Some(&flow))
+            .format_output_lines(None, Some(&rep), None)
             .expect("render");
+        assert_ne!(default_lines.len(), custom_lines.len());
         let text = custom_lines
             .iter()
             .map(|line| match line {

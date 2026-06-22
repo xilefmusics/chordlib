@@ -4,74 +4,88 @@ use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
-use super::{Line, Section, SimpleChord};
+use super::{Line, Section, SimpleChord, SongFlowItem};
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Song {
-    /// Titles from `{title}` / `{titleN}`; index 0 is the primary (`title()`).
     #[serde(default)]
     pub titles: Vec<String>,
     pub subtitle: Option<String>,
     pub copyright: Option<String>,
     pub key: Option<SimpleChord>,
-    /// Artists from `{artist}` / `{artistN}`; index 0 is the primary (`artist()`).
     #[serde(default)]
     pub artists: Vec<String>,
-    /// Language codes from `{language}` / `{languageN}`; index 0 is the primary (`language()`).
     #[serde(default)]
     pub languages: Vec<String>,
     pub tempo: Option<u32>,
     pub time: Option<(u32, u32)>,
-    /// Custom tags (e.g. scripture, hymn_type) from ChordPro `{meta: name value}`.
-    /// Only read/written by chord pro I/O; other formats ignore this.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub tags: BTreeMap<String, String>,
     pub sections: Vec<Section>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-pub struct SongFlowItem {
-    pub title: String,
-    pub repeats: u32,
-}
-
-impl PartialEq<&str> for SongFlowItem {
-    fn eq(&self, other: &&str) -> bool {
-        self.title == *other
-    }
-}
-
 impl Song {
-    /// Primary title: first entry in `titles`, or empty when the vector is empty.
     pub fn title(&self) -> &str {
         self.titles.first().map(String::as_str).unwrap_or("")
     }
 
-    /// Primary artist: first entry in `artists`, or empty when the vector is empty.
     pub fn artist(&self) -> &str {
         self.artists.first().map(String::as_str).unwrap_or("")
     }
 
-    /// Primary language code: first entry in `languages`, or empty when the vector is empty.
     pub fn language(&self) -> &str {
         self.languages.first().map(String::as_str).unwrap_or("")
     }
 
-    pub fn transpose(&mut self, key: SimpleChord) -> &mut Self {
+    pub fn apply_key(&mut self, key: SimpleChord) -> &mut Self {
         self.key = Some(key);
         self
     }
 
+    pub fn apply_flow(&mut self, flow: impl Into<Vec<SongFlowItem>>) -> Result<&mut Self, Error> {
+        let flow = flow.into();
+        if !flow.is_empty() {
+            self.sections = self.sections_for_flow(&flow)?;
+        }
+        Ok(self)
+    }
+
+    pub fn fill_section_references(&mut self) -> &mut Self {
+        let mut resolver = SectionNameResolver::new(self);
+        let mut bodies: BTreeMap<(String, u32), Vec<Line>> = BTreeMap::new();
+        let mut fills = Vec::new();
+
+        for (index, section) in self.sections.iter().enumerate() {
+            let resolution = resolver.resolve(section);
+            let key = (resolution.title.clone(), resolution.occurrence_index);
+
+            if section.lines.is_empty() {
+                if bodies.contains_key(&key) {
+                    fills.push((index, key));
+                }
+            } else {
+                bodies.entry(key).or_insert_with(|| section.lines.clone());
+            }
+        }
+
+        for (index, key) in fills {
+            if let Some(lines) = bodies.get(&key) {
+                self.sections[index].lines.clone_from(lines);
+            }
+        }
+
+        self
+    }
+
     pub fn normalize(&mut self) -> &mut Self {
-        for section in &mut self.sections {
-            if let Some(key) = &self.key {
+        if let Some(key) = &self.key {
+            for section in &mut self.sections {
                 section.normalize(key);
             }
         }
         self
     }
 
-    /// Bar duration in milliclicks (1000 per click; one bar in 4/4 = 4000).
     pub fn bar_duration(&self) -> u32 {
         if let Some((numerator, denominator)) = self.time {
             1000 * numerator * 4 / denominator
@@ -92,11 +106,6 @@ impl Song {
         )
     }
 
-    /// Returns the most appropriate title for the given language index.
-    ///
-    /// If `language` is `Some(idx)` and `self.titles` contains a non-empty
-    /// title at that index, that title is returned. Otherwise, this falls
-    /// back to the primary `title()`.
     pub fn title_for_language(&self, language: Option<usize>) -> &str {
         let idx = language.unwrap_or(0);
         if let Some(candidate) = self.titles.get(idx)
@@ -125,35 +134,33 @@ impl Song {
         self
     }
 
-    /// Returns the distinct section names in first-seen order.
-    ///
-    /// Sections are grouped by exact title. Empty sections only establish the
-    /// base title, while later non-empty variants may receive numeric suffixes
-    /// like ` [2]` when their content differs.
-    pub fn distinct_section_names(&self) -> Vec<String> {
+    pub fn flow_items(&self) -> Vec<SongFlowItem> {
         let mut resolver = SectionNameResolver::new(self);
         let mut distinct = Vec::new();
 
         for section in &self.sections {
             let resolution = resolver.resolve(section);
             if resolution.is_new {
-                distinct.push(resolution.name);
+                distinct.push(SongFlowItem {
+                    title: resolution.title,
+                    occurrence_index: resolution.occurrence_index,
+                    repeats: section.repeat_count,
+                });
             }
         }
 
         distinct
     }
 
-    /// Returns the section labels for the full flow of the song, preserving
-    /// every section occurrence in order.
-    pub fn section_flow_names(&self) -> Vec<SongFlowItem> {
+    pub fn custom_flow(&self) -> Vec<SongFlowItem> {
         let mut resolver = SectionNameResolver::new(self);
         let mut flow = Vec::with_capacity(self.sections.len());
 
         for section in &self.sections {
             let resolution = resolver.resolve(section);
             flow.push(SongFlowItem {
-                title: resolution.name,
+                title: resolution.title,
+                occurrence_index: resolution.occurrence_index,
                 repeats: section.repeat_count,
             });
         }
@@ -161,81 +168,48 @@ impl Song {
         flow
     }
 
-    pub(crate) fn sections_for_flow(
-        &self,
-        flow: Option<&[SongFlowItem]>,
-    ) -> Result<(Vec<Section>, bool), Error> {
-        let Some(flow) = flow.filter(|flow| !flow.is_empty()) else {
-            return Ok((self.sections.clone(), false));
-        };
-
+    fn sections_for_flow(&self, flow: &[SongFlowItem]) -> Result<Vec<Section>, Error> {
         let mut resolver = SectionNameResolver::new(self);
         let mut distinct_sections = BTreeMap::new();
 
         for section in &self.sections {
             let resolution = resolver.resolve(section);
-            let title = resolution.name;
-            distinct_sections.entry(title.clone()).or_insert_with(|| {
+            let key = (resolution.title.clone(), resolution.occurrence_index);
+            distinct_sections.entry(key).or_insert_with(|| {
                 let mut distinct_section = section.clone();
-                distinct_section.title = title.clone();
+                distinct_section.title = resolution.title;
                 distinct_section
             });
         }
 
         let mut rendered_sections = Vec::with_capacity(flow.len());
-        let mut seen_titles = BTreeSet::new();
+        let mut seen_keys = BTreeSet::new();
 
         for item in flow {
             if item.repeats < 1 {
                 return Err(Error::InvalidSongFlow(format!(
-                    "repeat count for section {:?} must be at least 1",
-                    item.title
+                    "repeat count for section {:?} (occurrence {}) must be at least 1",
+                    item.title, item.occurrence_index
                 )));
             }
 
-            let Some(template) = distinct_sections.get(&item.title) else {
+            let key = (item.title.clone(), item.occurrence_index);
+            let Some(template) = distinct_sections.get(&key) else {
                 return Err(Error::InvalidSongFlow(format!(
-                    "unknown section title {:?}",
-                    item.title
+                    "unknown section {:?} (occurrence {})",
+                    item.title, item.occurrence_index
                 )));
             };
 
             let mut section = template.clone();
             section.repeat_count = item.repeats;
-            if !seen_titles.insert(item.title.clone()) {
+            if !seen_keys.insert(key) {
                 section.lines.clear();
             }
             rendered_sections.push(section);
         }
 
-        Ok((rendered_sections, true))
-    }
-
-    /// Returns a slice of artists when `artists` is non-empty.
-    pub fn artist_slice(&self) -> Option<&[String]> {
-        if self.artists.is_empty() {
-            None
-        } else {
-            Some(self.artists.as_slice())
-        }
-    }
-
-    /// Returns a clone of language codes when `languages` is non-empty.
-    pub fn language_list(&self) -> Option<Vec<String>> {
-        if self.languages.is_empty() {
-            None
-        } else {
-            Some(self.languages.clone())
-        }
-    }
-
-    /// Returns a clone of artists when `artists` is non-empty.
-    pub fn artist_list(&self) -> Option<Vec<String>> {
-        if self.artists.is_empty() {
-            None
-        } else {
-            Some(self.artists.clone())
-        }
+        Ok(rendered_sections)
     }
 }
 
@@ -256,53 +230,44 @@ pub fn chord_duration_to_layout_milliclicks(
 struct SectionTitleState<'a> {
     variants: Vec<SectionVariant<'a>>,
     emitted_base: bool,
-    next_suffix: usize,
 }
 
 struct SectionVariant<'a> {
     lines: &'a [Line],
-    name: String,
+    occurrence_index: u32,
 }
 
 struct SectionNameResolution {
-    name: String,
+    title: String,
+    occurrence_index: u32,
     is_new: bool,
 }
 
 struct SectionNameResolver<'a> {
-    literal_titles: BTreeSet<&'a str>,
     states: BTreeMap<&'a str, SectionTitleState<'a>>,
-    used_names: BTreeSet<String>,
 }
 
 impl<'a> SectionNameResolver<'a> {
-    fn new(song: &'a Song) -> Self {
+    fn new(_song: &'a Song) -> Self {
         Self {
-            literal_titles: song
-                .sections
-                .iter()
-                .map(|section| section.title.as_str())
-                .collect(),
             states: BTreeMap::new(),
-            used_names: BTreeSet::new(),
         }
     }
 
     fn resolve(&mut self, section: &'a Section) -> SectionNameResolution {
         let title = section.title.as_str();
         let state = self.states.entry(title).or_default();
+        let base_title = title.to_string();
 
         if section.lines.is_empty() {
             let is_new = !state.emitted_base;
             if is_new {
                 state.emitted_base = true;
-                let name = title.to_string();
-                self.used_names.insert(name.clone());
-                return SectionNameResolution { name, is_new };
             }
 
             return SectionNameResolution {
-                name: title.to_string(),
+                title: base_title,
+                occurrence_index: 0,
                 is_new,
             };
         }
@@ -313,50 +278,34 @@ impl<'a> SectionNameResolver<'a> {
             .find(|variant| variant.lines == section.lines.as_slice())
         {
             return SectionNameResolution {
-                name: existing.name.clone(),
+                title: base_title,
+                occurrence_index: existing.occurrence_index,
                 is_new: false,
             };
         }
 
-        let is_first_non_empty_variant = state.variants.is_empty();
-        if is_first_non_empty_variant {
-            state.variants.push(SectionVariant {
-                lines: section.lines.as_slice(),
-                name: title.to_string(),
-            });
-
-            if !state.emitted_base {
-                state.emitted_base = true;
-                let name = title.to_string();
-                self.used_names.insert(name.clone());
-                return SectionNameResolution { name, is_new: true };
-            }
-
-            return SectionNameResolution {
-                name: title.to_string(),
-                is_new: false,
-            };
-        }
-
-        let mut suffix = state.next_suffix.max(2);
-        let name = loop {
-            let candidate = format!("{title} [{suffix}]");
-            if !self.literal_titles.contains(candidate.as_str())
-                && !self.used_names.contains(&candidate)
-            {
-                break candidate;
-            }
-            suffix += 1;
-        };
-
-        state.next_suffix = suffix + 1;
+        let occurrence_index = state.variants.len() as u32;
         state.variants.push(SectionVariant {
             lines: section.lines.as_slice(),
-            name: name.clone(),
+            occurrence_index,
         });
-        self.used_names.insert(name.clone());
 
-        SectionNameResolution { name, is_new: true }
+        let is_new = if occurrence_index == 0 {
+            if !state.emitted_base {
+                state.emitted_base = true;
+                true
+            } else {
+                false
+            }
+        } else {
+            true
+        };
+
+        SectionNameResolution {
+            title: base_title,
+            occurrence_index,
+            is_new,
+        }
     }
 }
 
@@ -419,9 +368,10 @@ mod tests {
         Section::new_with_repeat(title.to_string(), lines, repeat_count)
     }
 
-    fn flow_item(title: &str, repeats: u32) -> SongFlowItem {
+    fn flow_item(title: &str, occurrence_index: u32, repeats: u32) -> SongFlowItem {
         SongFlowItem {
             title: title.to_string(),
+            occurrence_index,
             repeats,
         }
     }
@@ -518,22 +468,6 @@ mod tests {
     }
 
     #[test]
-    fn language_list_returns_none_when_empty() {
-        let song = Song::default();
-        assert!(song.language_list().is_none());
-    }
-
-    #[test]
-    fn language_list_clones_non_empty_languages() {
-        let song = Song {
-            languages: vec!["en".to_string(), "de".to_string(), "fr".to_string()],
-            ..Song::default()
-        };
-        let langs = song.language_list().expect("language list");
-        assert_eq!(langs, vec!["en", "de", "fr"]);
-    }
-
-    #[test]
     fn title_for_language_prefers_titles_vector_and_falls_back() {
         let song = Song {
             titles: vec![
@@ -565,23 +499,23 @@ mod tests {
     }
 
     #[test]
-    fn distinct_section_names_returns_empty_for_song_without_sections() {
+    fn flow_items_returns_empty_for_song_without_sections() {
         let song = Song::default();
-        assert!(song.distinct_section_names().is_empty());
+        assert!(song.flow_items().is_empty());
     }
 
     #[test]
-    fn distinct_section_names_returns_single_name_for_single_section() {
+    fn flow_items_returns_single_name_for_single_section() {
         let song = Song {
             sections: vec![section("Chorus", vec![text_line("This is the content")])],
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Chorus"]);
+        assert_eq!(song.flow_items(), vec![flow_item("Chorus", 0, 1)]);
     }
 
     #[test]
-    fn distinct_section_names_collapses_exact_duplicate_sections_and_keeps_first_order() {
+    fn flow_items_collapses_exact_duplicate_sections_and_keeps_first_order() {
         let song = Song {
             sections: vec![
                 section("Chorus", vec![text_line("This is the content")]),
@@ -595,11 +529,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Chorus", "Chorus [2]"]);
+        assert_eq!(
+            song.flow_items(),
+            vec![flow_item("Chorus", 0, 1), flow_item("Chorus", 1, 1)]
+        );
     }
 
     #[test]
-    fn distinct_section_names_ignores_repeat_count_when_contents_match() {
+    fn flow_items_ignores_repeat_count_when_contents_match() {
         let song = Song {
             sections: vec![
                 section_with_repeat("Verse", vec![text_line("Same line")], 1),
@@ -608,11 +545,11 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Verse"]);
+        assert_eq!(song.flow_items(), vec![flow_item("Verse", 0, 1)]);
     }
 
     #[test]
-    fn distinct_section_names_treats_empty_sections_as_one_name_only() {
+    fn flow_items_treats_empty_sections_as_one_name_only() {
         let song = Song {
             sections: vec![
                 section("Intro", vec![]),
@@ -622,11 +559,11 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Intro"]);
+        assert_eq!(song.flow_items(), vec![flow_item("Intro", 0, 1)]);
     }
 
     #[test]
-    fn distinct_section_names_keeps_unsuffixed_name_when_empty_precedes_content() {
+    fn flow_items_keeps_unsuffixed_name_when_empty_precedes_content() {
         let song = Song {
             sections: vec![
                 section("Bridge", vec![]),
@@ -638,11 +575,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Bridge", "Bridge [2]"]);
+        assert_eq!(
+            song.flow_items(),
+            vec![flow_item("Bridge", 0, 1), flow_item("Bridge", 1, 1)]
+        );
     }
 
     #[test]
-    fn distinct_section_names_handles_empty_sections_between_content_variants() {
+    fn flow_items_handles_empty_sections_between_content_variants() {
         let song = Song {
             sections: vec![
                 section("Chorus", vec![text_line("Alpha")]),
@@ -654,11 +594,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Chorus", "Chorus [2]"]);
+        assert_eq!(
+            song.flow_items(),
+            vec![flow_item("Chorus", 0, 1), flow_item("Chorus", 1, 1)]
+        );
     }
 
     #[test]
-    fn distinct_section_names_compares_sections_structurally_across_line_details() {
+    fn flow_items_compares_sections_structurally_across_line_details() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Same text")]),
@@ -677,13 +620,19 @@ mod tests {
         };
 
         assert_eq!(
-            song.distinct_section_names(),
-            vec!["Verse", "Verse [2]", "Verse [3]", "Verse [4]", "Verse [5]"]
+            song.flow_items(),
+            vec![
+                flow_item("Verse", 0, 1),
+                flow_item("Verse", 1, 1),
+                flow_item("Verse", 2, 1),
+                flow_item("Verse", 3, 1),
+                flow_item("Verse", 4, 1),
+            ]
         );
     }
 
     #[test]
-    fn distinct_section_names_treats_translation_changes_as_distinct() {
+    fn flow_items_treats_translation_changes_as_distinct() {
         let song = Song {
             sections: vec![
                 section(
@@ -698,11 +647,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Verse", "Verse [2]"]);
+        assert_eq!(
+            song.flow_items(),
+            vec![flow_item("Verse", 0, 1), flow_item("Verse", 1, 1)]
+        );
     }
 
     #[test]
-    fn distinct_section_names_treats_line_count_changes_as_distinct() {
+    fn flow_items_treats_line_count_changes_as_distinct() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("One")]),
@@ -711,11 +663,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Verse", "Verse [2]"]);
+        assert_eq!(
+            song.flow_items(),
+            vec![flow_item("Verse", 0, 1), flow_item("Verse", 1, 1)]
+        );
     }
 
     #[test]
-    fn distinct_section_names_treats_different_line_order_as_distinct() {
+    fn flow_items_treats_different_line_order_as_distinct() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("One"), text_line("Two")]),
@@ -724,11 +679,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Verse", "Verse [2]"]);
+        assert_eq!(
+            song.flow_items(),
+            vec![flow_item("Verse", 0, 1), flow_item("Verse", 1, 1)]
+        );
     }
 
     #[test]
-    fn distinct_section_names_keeps_same_content_under_different_titles_separate() {
+    fn flow_items_keeps_same_content_under_different_titles_separate() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Shared")]),
@@ -737,11 +695,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.distinct_section_names(), vec!["Verse", "Chorus"]);
+        assert_eq!(
+            song.flow_items(),
+            vec![flow_item("Verse", 0, 1), flow_item("Chorus", 0, 1)]
+        );
     }
 
     #[test]
-    fn distinct_section_names_skips_collisions_with_literal_suffixed_titles() {
+    fn flow_items_skips_collisions_with_literal_suffixed_titles() {
         let song = Song {
             sections: vec![
                 section("Chorus", vec![text_line("Alpha")]),
@@ -752,13 +713,17 @@ mod tests {
         };
 
         assert_eq!(
-            song.distinct_section_names(),
-            vec!["Chorus", "Chorus [2]", "Chorus [3]"]
+            song.flow_items(),
+            vec![
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus [2]", 0, 1),
+                flow_item("Chorus", 1, 1),
+            ]
         );
     }
 
     #[test]
-    fn distinct_section_names_skips_future_literal_collisions_when_numbering_variants() {
+    fn flow_items_skips_future_literal_collisions_when_numbering_variants() {
         let song = Song {
             sections: vec![
                 section("Chorus", vec![text_line("Alpha")]),
@@ -770,13 +735,18 @@ mod tests {
         };
 
         assert_eq!(
-            song.distinct_section_names(),
-            vec!["Chorus", "Chorus [4]", "Chorus [2]", "Chorus [3]"]
+            song.flow_items(),
+            vec![
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus", 1, 1),
+                flow_item("Chorus [2]", 0, 1),
+                flow_item("Chorus [3]", 0, 1),
+            ]
         );
     }
 
     #[test]
-    fn distinct_section_names_skips_multiple_occupied_suffixes() {
+    fn flow_items_skips_multiple_occupied_suffixes() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Alpha")]),
@@ -788,13 +758,18 @@ mod tests {
         };
 
         assert_eq!(
-            song.distinct_section_names(),
-            vec!["Verse", "Verse [2]", "Verse [3]", "Verse [4]"]
+            song.flow_items(),
+            vec![
+                flow_item("Verse", 0, 1),
+                flow_item("Verse [2]", 0, 1),
+                flow_item("Verse [3]", 0, 1),
+                flow_item("Verse", 1, 1),
+            ]
         );
     }
 
     #[test]
-    fn distinct_section_names_is_case_sensitive_and_handles_empty_titles() {
+    fn flow_items_is_case_sensitive_and_handles_empty_titles() {
         let song = Song {
             sections: vec![
                 section("", vec![text_line("Blank title content")]),
@@ -806,13 +781,18 @@ mod tests {
         };
 
         assert_eq!(
-            song.distinct_section_names(),
-            vec!["", " [2]", "chorus", "Chorus"]
+            song.flow_items(),
+            vec![
+                flow_item("", 0, 1),
+                flow_item("", 1, 1),
+                flow_item("chorus", 0, 1),
+                flow_item("Chorus", 0, 1),
+            ]
         );
     }
 
     #[test]
-    fn distinct_section_names_does_not_mutate_song() {
+    fn flow_items_does_not_mutate_song() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Alpha")]),
@@ -823,30 +803,37 @@ mod tests {
         };
         let original = song.clone();
 
-        let names = song.distinct_section_names();
+        let items = song.flow_items();
 
         assert_eq!(song, original);
-        assert_eq!(names, vec!["Verse", "Verse [3]", "Verse [2]"]);
+        assert_eq!(
+            items,
+            vec![
+                flow_item("Verse", 0, 1),
+                flow_item("Verse", 1, 1),
+                flow_item("Verse [2]", 0, 1),
+            ]
+        );
     }
 
     #[test]
-    fn section_flow_names_returns_empty_for_song_without_sections() {
+    fn custom_flow_returns_empty_for_song_without_sections() {
         let song = Song::default();
-        assert!(song.section_flow_names().is_empty());
+        assert!(song.custom_flow().is_empty());
     }
 
     #[test]
-    fn section_flow_names_returns_single_name_for_single_section() {
+    fn custom_flow_returns_single_name_for_single_section() {
         let song = Song {
             sections: vec![section("Chorus", vec![text_line("This is the content")])],
             ..Song::default()
         };
 
-        assert_eq!(song.section_flow_names(), vec!["Chorus"]);
+        assert_eq!(song.custom_flow(), vec![flow_item("Chorus", 0, 1)]);
     }
 
     #[test]
-    fn section_flow_names_reuses_name_for_exact_duplicate_sections() {
+    fn custom_flow_reuses_name_for_exact_duplicate_sections() {
         let song = Song {
             sections: vec![
                 section("Chorus", vec![text_line("This is the content")]),
@@ -861,13 +848,18 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["Chorus", "Chorus", "Chorus [2]", "Chorus"]
+            song.custom_flow(),
+            vec![
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus", 1, 1),
+                flow_item("Chorus", 0, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_ignores_repeat_count_when_contents_match() {
+    fn custom_flow_ignores_repeat_count_when_contents_match() {
         let song = Song {
             sections: vec![
                 section_with_repeat("Verse", vec![text_line("Same line")], 1),
@@ -877,13 +869,13 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec![flow_item("Verse", 1), flow_item("Verse", 4)]
+            song.custom_flow(),
+            vec![flow_item("Verse", 0, 1), flow_item("Verse", 0, 4)]
         );
     }
 
     #[test]
-    fn section_flow_names_copies_repeat_counts_for_default_flow() {
+    fn custom_flow_copies_repeat_counts_for_default_flow() {
         let song = Song {
             sections: vec![
                 section_with_repeat("Verse", vec![text_line("One")], 2),
@@ -893,13 +885,13 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec![flow_item("Verse", 2), flow_item("Chorus", 3)]
+            song.custom_flow(),
+            vec![flow_item("Verse", 0, 2), flow_item("Chorus", 0, 3)]
         );
     }
 
     #[test]
-    fn section_flow_names_keeps_empty_sections_in_flow_without_creating_variants() {
+    fn custom_flow_keeps_empty_sections_in_flow_without_creating_variants() {
         let song = Song {
             sections: vec![
                 section("Intro", vec![]),
@@ -911,13 +903,18 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["Intro", "Intro", "Intro", "Intro"]
+            song.custom_flow(),
+            vec![
+                flow_item("Intro", 0, 1),
+                flow_item("Intro", 0, 1),
+                flow_item("Intro", 0, 1),
+                flow_item("Intro", 0, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_keeps_unsuffixed_name_when_empty_precedes_content() {
+    fn custom_flow_keeps_unsuffixed_name_when_empty_precedes_content() {
         let song = Song {
             sections: vec![
                 section("Bridge", vec![]),
@@ -930,13 +927,19 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["Bridge", "Bridge", "Bridge", "Bridge [2]", "Bridge"]
+            song.custom_flow(),
+            vec![
+                flow_item("Bridge", 0, 1),
+                flow_item("Bridge", 0, 1),
+                flow_item("Bridge", 0, 1),
+                flow_item("Bridge", 1, 1),
+                flow_item("Bridge", 0, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_handles_empty_sections_between_content_variants() {
+    fn custom_flow_handles_empty_sections_between_content_variants() {
         let song = Song {
             sections: vec![
                 section("Chorus", vec![text_line("Alpha")]),
@@ -949,13 +952,19 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["Chorus", "Chorus", "Chorus [2]", "Chorus", "Chorus [2]"]
+            song.custom_flow(),
+            vec![
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus", 1, 1),
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus", 1, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_compares_sections_structurally_across_line_details() {
+    fn custom_flow_compares_sections_structurally_across_line_details() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Same text")]),
@@ -974,13 +983,19 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["Verse", "Verse [2]", "Verse [3]", "Verse [4]", "Verse [5]"]
+            song.custom_flow(),
+            vec![
+                flow_item("Verse", 0, 1),
+                flow_item("Verse", 1, 1),
+                flow_item("Verse", 2, 1),
+                flow_item("Verse", 3, 1),
+                flow_item("Verse", 4, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_treats_translation_changes_as_distinct() {
+    fn custom_flow_treats_translation_changes_as_distinct() {
         let song = Song {
             sections: vec![
                 section(
@@ -995,11 +1010,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.section_flow_names(), vec!["Verse", "Verse [2]"]);
+        assert_eq!(
+            song.custom_flow(),
+            vec![flow_item("Verse", 0, 1), flow_item("Verse", 1, 1)]
+        );
     }
 
     #[test]
-    fn section_flow_names_treats_line_count_changes_as_distinct() {
+    fn custom_flow_treats_line_count_changes_as_distinct() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("One")]),
@@ -1008,11 +1026,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.section_flow_names(), vec!["Verse", "Verse [2]"]);
+        assert_eq!(
+            song.custom_flow(),
+            vec![flow_item("Verse", 0, 1), flow_item("Verse", 1, 1)]
+        );
     }
 
     #[test]
-    fn section_flow_names_treats_different_line_order_as_distinct() {
+    fn custom_flow_treats_different_line_order_as_distinct() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("One"), text_line("Two")]),
@@ -1021,11 +1042,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.section_flow_names(), vec!["Verse", "Verse [2]"]);
+        assert_eq!(
+            song.custom_flow(),
+            vec![flow_item("Verse", 0, 1), flow_item("Verse", 1, 1)]
+        );
     }
 
     #[test]
-    fn section_flow_names_keeps_same_content_under_different_titles_separate() {
+    fn custom_flow_keeps_same_content_under_different_titles_separate() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Shared")]),
@@ -1034,11 +1058,14 @@ mod tests {
             ..Song::default()
         };
 
-        assert_eq!(song.section_flow_names(), vec!["Verse", "Chorus"]);
+        assert_eq!(
+            song.custom_flow(),
+            vec![flow_item("Verse", 0, 1), flow_item("Chorus", 0, 1)]
+        );
     }
 
     #[test]
-    fn section_flow_names_skips_collisions_with_literal_suffixed_titles() {
+    fn custom_flow_skips_collisions_with_literal_suffixed_titles() {
         let song = Song {
             sections: vec![
                 section("Chorus", vec![text_line("Alpha")]),
@@ -1049,13 +1076,17 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["Chorus", "Chorus [2]", "Chorus [3]"]
+            song.custom_flow(),
+            vec![
+                flow_item("Chorus", 0, 1),
+                flow_item("Chorus [2]", 0, 1),
+                flow_item("Chorus", 1, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_skips_multiple_occupied_suffixes() {
+    fn custom_flow_skips_multiple_occupied_suffixes() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Alpha")]),
@@ -1067,13 +1098,18 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["Verse", "Verse [2]", "Verse [3]", "Verse [4]"]
+            song.custom_flow(),
+            vec![
+                flow_item("Verse", 0, 1),
+                flow_item("Verse [2]", 0, 1),
+                flow_item("Verse [3]", 0, 1),
+                flow_item("Verse", 1, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_is_case_sensitive_and_handles_empty_titles() {
+    fn custom_flow_is_case_sensitive_and_handles_empty_titles() {
         let song = Song {
             sections: vec![
                 section("", vec![text_line("Blank title content")]),
@@ -1085,13 +1121,18 @@ mod tests {
         };
 
         assert_eq!(
-            song.section_flow_names(),
-            vec!["", " [2]", "chorus", "Chorus"]
+            song.custom_flow(),
+            vec![
+                flow_item("", 0, 1),
+                flow_item("", 1, 1),
+                flow_item("chorus", 0, 1),
+                flow_item("Chorus", 0, 1),
+            ]
         );
     }
 
     #[test]
-    fn section_flow_names_does_not_mutate_song() {
+    fn custom_flow_does_not_mutate_song() {
         let song = Song {
             sections: vec![
                 section("Verse", vec![text_line("Alpha")]),
@@ -1102,10 +1143,45 @@ mod tests {
         };
         let original = song.clone();
 
-        let flow = song.section_flow_names();
+        let flow = song.custom_flow();
 
         assert_eq!(song, original);
-        assert_eq!(flow, vec!["Verse", "Verse [3]", "Verse [2]"]);
+        assert_eq!(
+            flow,
+            vec![
+                flow_item("Verse", 0, 1),
+                flow_item("Verse", 1, 1),
+                flow_item("Verse [2]", 0, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn apply_flow_reorders_sections_to_match_flow() {
+        let song = Song {
+            sections: vec![
+                section("Verse", vec![text_line("First line")]),
+                section("Chorus", vec![text_line("Second line")]),
+            ],
+            ..Song::default()
+        };
+        let flow = vec![
+            flow_item("Chorus", 0, 1),
+            flow_item("Verse", 0, 2),
+            flow_item("Chorus", 0, 1),
+        ];
+
+        let mut song = song;
+        song.apply_flow(flow.clone()).expect("valid flow");
+
+        assert_eq!(song.sections.len(), 3);
+        assert_eq!(song.sections[0].title, "Chorus");
+        assert_eq!(song.sections[0].lines, vec![text_line("Second line")]);
+        assert_eq!(song.sections[1].title, "Verse");
+        assert_eq!(song.sections[1].lines, vec![text_line("First line")]);
+        assert_eq!(song.sections[1].repeat_count, 2);
+        assert!(song.sections[2].lines.is_empty());
+        assert_eq!(song.custom_flow(), flow);
     }
 
     #[test]
@@ -1118,13 +1194,12 @@ mod tests {
             ..Song::default()
         };
         let flow = vec![
-            flow_item("Verse", 1),
-            flow_item("Verse", 2),
-            flow_item("Chorus", 1),
+            flow_item("Verse", 0, 1),
+            flow_item("Verse", 0, 2),
+            flow_item("Chorus", 0, 1),
         ];
 
-        let (sections, custom) = song.sections_for_flow(Some(&flow)).expect("flow");
-        assert!(custom);
+        let sections = song.sections_for_flow(&flow).expect("flow");
         assert_eq!(sections.len(), 3);
         assert_eq!(sections[0].title, "Verse");
         assert_eq!(sections[0].lines, vec![text_line("First line")]);
@@ -1136,6 +1211,84 @@ mod tests {
     }
 
     #[test]
+    fn fill_section_references_copies_prior_body_into_empty_sections() {
+        let mut song = Song {
+            sections: vec![
+                section("Verse", vec![text_line("Text 1")]),
+                section("Chorus", vec![text_line("Text 2")]),
+                section("Verse 2", vec![text_line("Text 3")]),
+                section("Chorus", vec![]),
+                section("Bridge", vec![text_line("Text 4")]),
+                section("Chorus", vec![]),
+            ],
+            ..Song::default()
+        };
+
+        song.fill_section_references();
+
+        assert_eq!(song.sections[0].lines, vec![text_line("Text 1")]);
+        assert_eq!(song.sections[1].lines, vec![text_line("Text 2")]);
+        assert_eq!(song.sections[2].lines, vec![text_line("Text 3")]);
+        assert_eq!(song.sections[3].lines, vec![text_line("Text 2")]);
+        assert_eq!(song.sections[4].lines, vec![text_line("Text 4")]);
+        assert_eq!(song.sections[5].lines, vec![text_line("Text 2")]);
+    }
+
+    #[test]
+    fn fill_section_references_leaves_empty_sections_before_first_definition() {
+        let mut song = Song {
+            sections: vec![
+                section("Intro", vec![]),
+                section("Intro", vec![text_line("First content")]),
+                section("Intro", vec![]),
+            ],
+            ..Song::default()
+        };
+
+        song.fill_section_references();
+
+        assert!(song.sections[0].lines.is_empty());
+        assert_eq!(song.sections[1].lines, vec![text_line("First content")]);
+        assert_eq!(song.sections[2].lines, vec![text_line("First content")]);
+    }
+
+    #[test]
+    fn fill_section_references_uses_occurrence_zero_for_empty_references() {
+        let mut song = Song {
+            sections: vec![
+                section("Chorus", vec![text_line("Alpha")]),
+                section("Chorus", vec![]),
+                section("Chorus", vec![text_line("Beta")]),
+                section("Chorus", vec![]),
+            ],
+            ..Song::default()
+        };
+
+        song.fill_section_references();
+
+        assert_eq!(song.sections[0].lines, vec![text_line("Alpha")]);
+        assert_eq!(song.sections[1].lines, vec![text_line("Alpha")]);
+        assert_eq!(song.sections[2].lines, vec![text_line("Beta")]);
+        assert_eq!(song.sections[3].lines, vec![text_line("Alpha")]);
+    }
+
+    #[test]
+    fn fill_section_references_does_not_overwrite_existing_content() {
+        let mut song = Song {
+            sections: vec![
+                section("Verse", vec![text_line("Original")]),
+                section("Verse", vec![text_line("Different")]),
+            ],
+            ..Song::default()
+        };
+        let original = song.sections.clone();
+
+        song.fill_section_references();
+
+        assert_eq!(song.sections, original);
+    }
+
+    #[test]
     fn sections_for_flow_rejects_unknown_titles_and_zero_repeats() {
         let song = Song {
             sections: vec![section("Verse", vec![text_line("One")])],
@@ -1143,12 +1296,12 @@ mod tests {
         };
 
         let unknown = song
-            .sections_for_flow(Some(&[flow_item("Missing", 1)]))
+            .sections_for_flow(&[flow_item("Missing", 0, 1)])
             .expect_err("unknown title should fail");
         assert!(matches!(unknown, Error::InvalidSongFlow(_)));
 
         let invalid_repeats = song
-            .sections_for_flow(Some(&[flow_item("Verse", 0)]))
+            .sections_for_flow(&[flow_item("Verse", 0, 0)])
             .expect_err("repeat zero should fail");
         assert!(matches!(invalid_repeats, Error::InvalidSongFlow(_)));
     }
