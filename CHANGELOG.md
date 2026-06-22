@@ -6,6 +6,20 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.13.0] — Custom song flow rendering
+
+### ✨ Features
+
+- **Custom song flow rendering** — HTML, terminal, and char-page renderers accept an optional `SongFlowItem` flow to reorder and repeat sections. Absent or empty flow preserves the song's stored section order. (#71)
+- **`Song::section_flow_names`** — Returns ordered section labels with repeat counts for the song's default flow.
+- **`Song::distinct_section_names`** — Returns unique section names in first-seen order, with structural suffixes like ` [2]` for content variants.
+
+### 🛠️ Other
+
+- **Renderer API** — `format_render`, `format_html`, `format_html_page`, `format_html_sections`, and `format_char_pages` now return `Result` and take an optional flow argument. Invalid flows surface as `Error::InvalidSongFlow`.
+
+---
+
 ## [0.12.4] — Worship Pro text-only translation import
 
 ### 🐛 Fixes
@@ -234,6 +248,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.13.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.13.0
 [0.12.4]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.4
 [0.12.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.3
 [0.12.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.2
