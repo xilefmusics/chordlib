@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### ✨ Features
+
+- **`Song::apply_flow`** — Reorders and repeats sections on the song itself before rendering. Empty flow is a no-op.
+- **`Song::fill_section_references`** — Copies lyric bodies from earlier sections into empty reference sections.
+- **`Song::custom_flow` / `Song::flow_items`** — Return the default flow and distinct section items as `SongFlowItem` values. Content variants that share a title are distinguished by `occurrence_index` instead of title suffixes like ` [2]`.
+
+### 🔄 Breaking changes
+
+- **Custom song flow** — Renderers no longer accept an optional flow argument. Call `Song::apply_flow` first, then render as usual. Invalid flows surface as `Error::InvalidSongFlow`.
+- **`SongFlowItem`** — Adds `occurrence_index`; moved to its own module.
+- **`Song::transpose`** — Renamed to `Song::apply_key`.
+- **Removed helpers** — `Song::distinct_section_names`, `Song::section_flow_names`, `Song::language_list`, `Song::artist_list`, and `Song::artist_slice`. Use `flow_items`, `custom_flow`, and the public metadata vectors instead.
+
 ---
 
 ## [0.13.0] — Custom song flow rendering

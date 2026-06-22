@@ -775,8 +775,7 @@ mod tests {
 "#;
         let song = load_string(input).expect("parse");
         assert_eq!(song.language(), "en");
-        let langs = song.language_list().expect("language list");
-        assert_eq!(langs, vec!["en", "de", "fr"]);
+        assert_eq!(song.languages, vec!["en", "de", "fr"]);
     }
 
     #[test]
@@ -798,11 +797,6 @@ mod tests {
                 "Second Artist".to_string(),
                 "Third Artist".to_string()
             ]
-        );
-        let artist_list = song.artist_list().expect("artist list");
-        assert_eq!(
-            artist_list,
-            vec!["First Artist", "Second Artist", "Third Artist"]
         );
     }
 

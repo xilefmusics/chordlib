@@ -1,6 +1,6 @@
 use super::{FormatOutputLines, OutputLine, repeat_label};
 use crate::Error;
-use crate::types::{ChordRepresentation, SimpleChord, Song, SongFlowItem};
+use crate::types::{ChordRepresentation, SimpleChord, Song};
 use std::cmp::max;
 use std::iter::{Chain, Repeat, Take, Zip};
 use std::slice::Iter;
@@ -171,7 +171,6 @@ pub trait FormatCharPages {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-        flow: Option<&[SongFlowItem]>,
     ) -> Result<Vec<CharPage>, Error>;
 }
 
@@ -183,14 +182,12 @@ impl FormatCharPages for &Song {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-        flow: Option<&[SongFlowItem]>,
     ) -> Result<Vec<CharPage>, Error> {
         let mut char_pages = vec![CharPage::new(max_width, max_height)];
-        let (sections, custom_flow) = self.sections_for_flow(flow)?;
 
-        for section in sections {
-            let mut lines: Vec<CharPageLine> = (&section)
-                .format_output_lines(key, representation, language, None)?
+        for section in &self.sections {
+            let mut lines: Vec<CharPageLine> = (section)
+                .format_output_lines(key, representation, language)?
                 .into_iter()
                 .map(|line| match line {
                     OutputLine::Keyword(s) => CharPageLine::Keyword(s),
@@ -198,7 +195,7 @@ impl FormatCharPages for &Song {
                     OutputLine::Text(s) => CharPageLine::Text(s),
                 })
                 .collect();
-            if custom_flow && let Some(repeat_text) = repeat_label(section.repeat_count) {
+            if let Some(repeat_text) = repeat_label(section.repeat_count) {
                 lines.push(CharPageLine::Text(repeat_text));
             }
 
@@ -221,15 +218,16 @@ mod tests {
     use crate::inputs::chord_pro::load_string;
     use crate::types::SongFlowItem;
 
-    fn flow_item(title: &str, repeats: u32) -> SongFlowItem {
+    fn flow_item(title: &str, occurrence_index: u32, repeats: u32) -> SongFlowItem {
         SongFlowItem {
             title: title.to_string(),
+            occurrence_index,
             repeats,
         }
     }
 
     #[test]
-    fn format_char_pages_supports_custom_flow_and_empty_flow_matches_default() {
+    fn format_char_pages_supports_custom_flow_after_apply_flow() {
         let input = r#"{title: Ohne Titel}
 {key: A}
 {section: Tag 1}
@@ -242,27 +240,21 @@ Text 3
 {section: Tag 2}
 {section: Tag 3}
 "#;
-        let song = load_string(input).expect("parse");
+        let mut song = load_string(input).expect("parse");
         let rep = ChordRepresentation::Default;
         let flow = vec![
-            flow_item("Tag 1", 1),
-            flow_item("Tag 2", 1),
-            flow_item("Tag 3", 1),
-            flow_item("Tag 1", 2),
-            flow_item("Tag 3", 1),
-            flow_item("Tag 2", 1),
+            flow_item("Tag 1", 0, 1),
+            flow_item("Tag 2", 0, 1),
+            flow_item("Tag 3", 0, 1),
+            flow_item("Tag 1", 0, 2),
+            flow_item("Tag 3", 0, 1),
+            flow_item("Tag 2", 0, 1),
         ];
 
-        let default_pages = (&song)
-            .format_char_pages(80, 20, None, Some(&rep), None, None)
-            .expect("render");
-        let empty_flow_pages = (&song)
-            .format_char_pages(80, 20, None, Some(&rep), None, Some(&[]))
-            .expect("render");
-        assert_eq!(default_pages.len(), empty_flow_pages.len());
+        song.apply_flow(flow).expect("apply flow");
 
         let custom_pages = (&song)
-            .format_char_pages(80, 20, None, Some(&rep), None, Some(&flow))
+            .format_char_pages(80, 20, None, Some(&rep), None)
             .expect("render");
         let rendered = custom_pages[0].render(&CharPageSet::new());
         assert!(rendered.contains("Tag 1:"));

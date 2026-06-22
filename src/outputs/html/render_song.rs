@@ -1,6 +1,6 @@
 use super::{CssTemplate, FormatHTML, HtmlPageTemplate, HtmlTemplate, render_section};
 use crate::Error;
-use crate::types::{ChordRepresentation, SimpleChord, Song, SongFlowItem};
+use crate::types::{ChordRepresentation, SimpleChord, Song};
 use askama::Template;
 
 struct HtmlRenderContext {
@@ -41,13 +41,8 @@ impl Song {
         (ctx, key_str)
     }
 
-    fn render_section_htmls(
-        &self,
-        ctx: &HtmlRenderContext,
-        flow: Option<&[SongFlowItem]>,
-    ) -> Result<Vec<String>, Error> {
-        let (sections, _) = self.sections_for_flow(flow)?;
-        Ok(sections
+    fn render_section_htmls(&self, ctx: &HtmlRenderContext) -> Vec<String> {
+        self.sections
             .iter()
             .map(|section| {
                 render_section::render_section(
@@ -60,7 +55,7 @@ impl Song {
                     ctx.compact_six_eight,
                 )
             })
-            .collect())
+            .collect()
     }
 
     fn html_css(&self, scale: Option<f32>) -> String {
@@ -79,10 +74,9 @@ impl FormatHTML for &Song {
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         scale: Option<f32>,
-        flow: Option<&[SongFlowItem]>,
     ) -> Result<(Vec<String>, String), Error> {
         let (ctx, _) = self.html_render_context(key, representation, language);
-        let sections = self.render_section_htmls(&ctx, flow)?;
+        let sections = self.render_section_htmls(&ctx);
         let css = self.html_css(scale);
         Ok((sections, css))
     }
@@ -93,23 +87,26 @@ impl FormatHTML for &Song {
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         scale: Option<f32>,
-        flow: Option<&[SongFlowItem]>,
     ) -> Result<(String, String), Error> {
         let language = language.unwrap_or(0);
         let (ctx, key_str) = self.html_render_context(key, representation, Some(language));
-        let section_htmls = self.render_section_htmls(&ctx, flow)?;
+        let section_htmls = self.render_section_htmls(&ctx);
 
-        let selected_artist = self.artist_slice().and_then(|list| {
+        let selected_artist = if self.artists.is_empty() {
+            None
+        } else {
+            let list = self.artists.as_slice();
             let idx = language;
             if let Some(candidate) = list.get(idx)
                 && !candidate.trim().is_empty()
             {
-                return Some(candidate.as_str());
+                Some(candidate.as_str())
+            } else {
+                list.first()
+                    .map(String::as_str)
+                    .filter(|s| !s.trim().is_empty())
             }
-            list.first()
-                .map(String::as_str)
-                .filter(|s| !s.trim().is_empty())
-        });
+        };
 
         let subtitle = match (
             self.subtitle.as_deref().filter(|s| !s.is_empty()),
@@ -143,9 +140,8 @@ impl FormatHTML for &Song {
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
         scale: Option<f32>,
-        flow: Option<&[SongFlowItem]>,
     ) -> Result<String, Error> {
-        let (page, style) = self.format_html_page(key, representation, language, scale, flow)?;
+        let (page, style) = self.format_html_page(key, representation, language, scale)?;
         Ok(wrap_html(&page, &style, self.title_for_language(language)))
     }
 }
@@ -165,9 +161,10 @@ mod tests {
     use crate::inputs::chord_pro::load_string;
     use crate::types::SongFlowItem;
 
-    fn flow_item(title: &str, repeats: u32) -> SongFlowItem {
+    fn flow_item(title: &str, occurrence_index: u32, repeats: u32) -> SongFlowItem {
         SongFlowItem {
             title: title.to_string(),
+            occurrence_index,
             repeats,
         }
     }
@@ -195,7 +192,7 @@ mod tests {
         let rep = ChordRepresentation::Default;
 
         let (sections, css) = (&song)
-            .format_html_sections(None, Some(&rep), None, None, None)
+            .format_html_sections(None, Some(&rep), None, None)
             .expect("render");
         assert_eq!(sections.len(), 2);
         assert!(sections[0].contains("<span class=\"keyword\">Verse</span>"));
@@ -213,7 +210,7 @@ mod tests {
         let rep = ChordRepresentation::Default;
 
         let (sections, css) = (&song)
-            .format_html_sections(None, Some(&rep), None, None, None)
+            .format_html_sections(None, Some(&rep), None, None)
             .expect("render");
         assert!(sections.is_empty());
         assert!(!css.is_empty());
@@ -232,10 +229,10 @@ mod tests {
         let rep = ChordRepresentation::Default;
 
         let (section_htmls, css_sections) = (&song)
-            .format_html_sections(None, Some(&rep), None, None, None)
+            .format_html_sections(None, Some(&rep), None, None)
             .expect("render");
         let (page_html, css_page) = (&song)
-            .format_html_page(None, Some(&rep), None, None, None)
+            .format_html_page(None, Some(&rep), None, None)
             .expect("render");
 
         for section in &section_htmls {
@@ -257,10 +254,10 @@ mod tests {
         let rep = ChordRepresentation::Default;
 
         let html_lang0 = (&song)
-            .format_html(None, Some(&rep), None, None, None)
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
         let html_lang1 = (&song)
-            .format_html(None, Some(&rep), Some(1), None, None)
+            .format_html(None, Some(&rep), Some(1), None)
             .expect("render");
 
         // <title> tag
@@ -288,13 +285,13 @@ mod tests {
         let rep = ChordRepresentation::Default;
 
         let html_lang0 = (&song)
-            .format_html(None, Some(&rep), None, None, None)
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
         let html_lang1 = (&song)
-            .format_html(None, Some(&rep), Some(1), None, None)
+            .format_html(None, Some(&rep), Some(1), None)
             .expect("render");
         let html_lang2 = (&song)
-            .format_html(None, Some(&rep), Some(2), None, None)
+            .format_html(None, Some(&rep), Some(2), None)
             .expect("render");
 
         // Language 0: first title
@@ -341,10 +338,10 @@ mod tests {
         let rep = ChordRepresentation::Default;
 
         let html_lang0 = (&song)
-            .format_html(None, Some(&rep), None, None, None)
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
         let html_lang1 = (&song)
-            .format_html(None, Some(&rep), Some(1), None, None)
+            .format_html(None, Some(&rep), Some(1), None)
             .expect("render");
 
         assert!(html_lang0.contains("Nur Deutsch"));
@@ -375,10 +372,10 @@ Zeile 3
         let rep = ChordRepresentation::Default;
 
         let html_de = (&song)
-            .format_html(None, Some(&rep), None, None, None)
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
         let html_en = (&song)
-            .format_html(None, Some(&rep), Some(1), None, None)
+            .format_html(None, Some(&rep), Some(1), None)
             .expect("render");
 
         assert!(html_de.contains("Zeile 1"));
@@ -405,7 +402,7 @@ Zeile 3
         let song = load_string(input).expect("parse");
         let rep = ChordRepresentation::Default;
         let html = (&song)
-            .format_html(None, Some(&rep), None, None, None)
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
 
         assert!(
@@ -433,7 +430,7 @@ Zeile 3
         let song = load_string(input).expect("parse");
         let rep = ChordRepresentation::Default;
         let html = (&song)
-            .format_html(None, Some(&rep), None, None, None)
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
 
         assert!(
@@ -467,7 +464,7 @@ Zeile 3
         let song = load_string(&input).expect("parse");
         let rep = ChordRepresentation::Default;
         let html = (&song)
-            .format_html(None, Some(&rep), None, None, None)
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
 
         assert!(html.contains(r#"<span class="chord">C</span>"#));
@@ -489,19 +486,20 @@ Text 3
 {section: Tag 2}
 {section: Tag 3}
 "#;
-        let song = load_string(input).expect("parse");
+        let mut song = load_string(input).expect("parse");
         let rep = ChordRepresentation::Default;
         let flow = vec![
-            flow_item("Tag 1", 1),
-            flow_item("Tag 2", 1),
-            flow_item("Tag 3", 1),
-            flow_item("Tag 1", 2),
-            flow_item("Tag 3", 1),
-            flow_item("Tag 2", 1),
+            flow_item("Tag 1", 0, 1),
+            flow_item("Tag 2", 0, 1),
+            flow_item("Tag 3", 0, 1),
+            flow_item("Tag 1", 0, 2),
+            flow_item("Tag 3", 0, 1),
+            flow_item("Tag 2", 0, 1),
         ];
+        song.apply_flow(flow).expect("apply flow");
 
         let (sections, css) = (&song)
-            .format_html_sections(None, Some(&rep), None, None, Some(&flow))
+            .format_html_sections(None, Some(&rep), None, None)
             .expect("render");
         assert_eq!(sections.len(), 6);
         assert!(sections[0].contains("Text 1"));
@@ -512,26 +510,9 @@ Text 3
         assert!(!css.is_empty());
 
         let page = (&song)
-            .format_html(None, Some(&rep), None, None, Some(&flow))
+            .format_html(None, Some(&rep), None, None)
             .expect("render");
         assert!(page.contains("Text 1"));
         assert!(page.contains("(repeat)"));
-    }
-
-    #[test]
-    fn html_custom_flow_rejects_unknown_titles() {
-        let input = r#"{title: Test}
-{key: C}
-{section: Verse}
-Line
-"#;
-        let song = load_string(input).expect("parse");
-        let rep = ChordRepresentation::Default;
-        let flow = vec![flow_item("Missing", 1)];
-
-        let err = (&song)
-            .format_html_sections(None, Some(&rep), None, None, Some(&flow))
-            .expect_err("flow should fail");
-        assert!(matches!(err, crate::Error::InvalidSongFlow(_)));
     }
 }

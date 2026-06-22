@@ -124,7 +124,7 @@ mod tests {
     fn html_does_not_show_repeat_marker_for_default() {
         let song = make_song_with_section("Chorus", 1);
         let html = (&song)
-            .format_html(None, Some(&ChordRepresentation::Default), None, None, None)
+            .format_html(None, Some(&ChordRepresentation::Default), None, None)
             .expect("render");
 
         assert!(html.contains("<span class=\"keyword\">Chorus</span>"));
@@ -135,7 +135,7 @@ mod tests {
     fn html_shows_repeat_marker_for_section_with_repeat_count() {
         let song = make_song_with_section("Chorus", 2);
         let html = (&song)
-            .format_html(None, Some(&ChordRepresentation::Default), None, None, None)
+            .format_html(None, Some(&ChordRepresentation::Default), None, None)
             .expect("render");
 
         assert!(html.contains("<span class=\"comment\">(repeat)</span>"));
