@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+---
+
+## [0.14.0] — Apply song flow before render
+
 ### ✨ Features
 
 - **`Song::apply_flow`** — Reorders and repeats sections on the song itself before rendering. Empty flow is a no-op.
@@ -261,6 +265,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.14.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.14.0
 [0.13.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.13.0
 [0.12.4]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.4
 [0.12.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.12.3
