@@ -8,6 +8,7 @@ pub enum Error {
     Filesystem(String),
     Serialize(String),
     Http(String),
+    InvalidSongFlow(String),
     Other(String),
 }
 
@@ -18,6 +19,7 @@ impl fmt::Display for Error {
             Self::Filesystem(message) => write!(f, "FilesystemError ({})", message),
             Self::Serialize(message) => write!(f, "Serialize ({})", message),
             Self::Http(message) => write!(f, "Http ({})", message),
+            Self::InvalidSongFlow(message) => write!(f, "InvalidSongFlow ({})", message),
             Self::Other(message) => write!(f, "{}", message),
         }
     }
