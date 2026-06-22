@@ -1,5 +1,6 @@
-use super::{FormatOutputLines, OutputLine};
-use crate::types::{ChordRepresentation, SimpleChord, Song};
+use super::{FormatOutputLines, OutputLine, repeat_label};
+use crate::Error;
+use crate::types::{ChordRepresentation, SimpleChord, Song, SongFlowItem};
 use std::cmp::max;
 use std::iter::{Chain, Repeat, Take, Zip};
 use std::slice::Iter;
@@ -170,7 +171,8 @@ pub trait FormatCharPages {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-    ) -> Vec<CharPage>;
+        flow: Option<&[SongFlowItem]>,
+    ) -> Result<Vec<CharPage>, Error>;
 }
 
 impl FormatCharPages for &Song {
@@ -181,21 +183,26 @@ impl FormatCharPages for &Song {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
-    ) -> Vec<CharPage> {
+        flow: Option<&[SongFlowItem]>,
+    ) -> Result<Vec<CharPage>, Error> {
         let mut char_pages = vec![CharPage::new(max_width, max_height)];
+        let (sections, custom_flow) = self.sections_for_flow(flow)?;
 
-        for section in &self.sections {
-            let lines = char_pages.last_mut().unwrap().try_add_lines(
-                section
-                    .format_output_lines(key, representation, language)
-                    .into_iter()
-                    .map(|line| match line {
-                        OutputLine::Keyword(s) => CharPageLine::Keyword(s),
-                        OutputLine::Chord(s) => CharPageLine::Chord(s),
-                        OutputLine::Text(s) => CharPageLine::Text(s),
-                    })
-                    .collect(),
-            );
+        for section in sections {
+            let mut lines: Vec<CharPageLine> = (&section)
+                .format_output_lines(key, representation, language, None)?
+                .into_iter()
+                .map(|line| match line {
+                    OutputLine::Keyword(s) => CharPageLine::Keyword(s),
+                    OutputLine::Chord(s) => CharPageLine::Chord(s),
+                    OutputLine::Text(s) => CharPageLine::Text(s),
+                })
+                .collect();
+            if custom_flow && let Some(repeat_text) = repeat_label(section.repeat_count) {
+                lines.push(CharPageLine::Text(repeat_text));
+            }
+
+            let lines = char_pages.last_mut().unwrap().try_add_lines(lines);
 
             if !lines.is_empty() {
                 let mut new_char_page = CharPage::new(max_width, max_height);
@@ -204,6 +211,63 @@ impl FormatCharPages for &Song {
             }
         }
 
-        char_pages
+        Ok(char_pages)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::inputs::chord_pro::load_string;
+    use crate::types::SongFlowItem;
+
+    fn flow_item(title: &str, repeats: u32) -> SongFlowItem {
+        SongFlowItem {
+            title: title.to_string(),
+            repeats,
+        }
+    }
+
+    #[test]
+    fn format_char_pages_supports_custom_flow_and_empty_flow_matches_default() {
+        let input = r#"{title: Ohne Titel}
+{key: A}
+{section: Tag 1}
+Text 1
+{section: Tag 2}
+Text 2
+{section: Tag 3}
+Text 3
+{section: Tag 1}
+{section: Tag 2}
+{section: Tag 3}
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+        let flow = vec![
+            flow_item("Tag 1", 1),
+            flow_item("Tag 2", 1),
+            flow_item("Tag 3", 1),
+            flow_item("Tag 1", 2),
+            flow_item("Tag 3", 1),
+            flow_item("Tag 2", 1),
+        ];
+
+        let default_pages = (&song)
+            .format_char_pages(80, 20, None, Some(&rep), None, None)
+            .expect("render");
+        let empty_flow_pages = (&song)
+            .format_char_pages(80, 20, None, Some(&rep), None, Some(&[]))
+            .expect("render");
+        assert_eq!(default_pages.len(), empty_flow_pages.len());
+
+        let custom_pages = (&song)
+            .format_char_pages(80, 20, None, Some(&rep), None, Some(&flow))
+            .expect("render");
+        let rendered = custom_pages[0].render(&CharPageSet::new());
+        assert!(rendered.contains("Tag 1:"));
+        assert!(rendered.contains("Text 1"));
+        assert!(rendered.contains("(repeat)"));
+        assert!(rendered.contains("Tag 3:"));
     }
 }

@@ -67,7 +67,7 @@ fn main() -> Result<(), Error> {
     if args.render {
         println!(
             "{}",
-            song.format_render(None, representation.as_ref(), args.language)
+            song.format_render(None, representation.as_ref(), args.language, None)?
         );
     }
 
@@ -86,7 +86,7 @@ fn main() -> Result<(), Error> {
     } else if args.output.ends_with(".html") {
         Ok(std::fs::write(
             args.output,
-            (&song).format_html(None, representation.as_ref(), args.language, None),
+            (&song).format_html(None, representation.as_ref(), args.language, None, None)?,
         )?)
     } else if args.output.is_empty() {
         Ok(())
