@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### ✨ Features
+
+- **SongBeamer input/output** — Read `.sng` files in SongBeamer's supported
+  encodings and write deterministic UTF-8/BOM `#Version=3` files with metadata,
+  multilingual lyrics, verse order, and native base64 chord positions.
+- **SongBeamer CLI conversion** — Accept `.sng` as both an input and output
+  extension, including case-insensitive extension matching.
+
 ---
 
 ## [0.14.0] — Apply song flow before render
