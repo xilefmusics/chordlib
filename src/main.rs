@@ -1,18 +1,20 @@
 use clap::Parser;
 
 use chordlib::Error;
-use chordlib::outputs::{FormatChordPro, FormatHTML, FormatRender, FormatSongBeamer};
+use chordlib::outputs::{
+    FormatChordPro, FormatHTML, FormatProPresenter, FormatRender, FormatSongBeamer,
+};
 use chordlib::types::{ChordRepresentation, SimpleChord};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// The input song file (ChordPro, Worship Pro, or Ultimate Guitar HTML)
+    /// Input song file (ChordPro, SongBeamer, ProPresenter, or Ultimate Guitar HTML)
     pub input: String,
     /// A boolean flag if the song should be rendered to the stdout
     #[arg(short, long, default_value_t = false)]
     pub render: bool,
-    /// The chordpro output path
+    /// Output path; the extension selects the output format
     #[arg(short, long, default_value_t = String::default())]
     pub output: String,
     #[arg(short, long)]
@@ -45,6 +47,8 @@ fn main() -> Result<(), Error> {
         chordlib::inputs::chord_pro::load(&args.input)
     } else if input_lower.ends_with(".sng") {
         chordlib::inputs::songbeamer::load(&args.input)
+    } else if input_lower.ends_with(".pro") {
+        chordlib::inputs::propresenter::load(&args.input)
     } else if input_lower.ends_with(".html") {
         let html = std::fs::read_to_string(&args.input)?;
         chordlib::inputs::ultimate_guitar::load_html(&html)
@@ -96,6 +100,11 @@ fn main() -> Result<(), Error> {
         Ok(std::fs::write(
             args.output,
             (&song).format_songbeamer(None, representation.as_ref())?,
+        )?)
+    } else if output_lower.ends_with(".pro") {
+        Ok(std::fs::write(
+            args.output,
+            (&song).format_propresenter(None, representation.as_ref(), args.language)?,
         )?)
     } else if args.output.is_empty() {
         Ok(())

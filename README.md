@@ -1,6 +1,6 @@
 # chordlib
 
-Rust helpers to parse, transform, and render chord-and-lyrics songs. The crate understands common formats (ChordPro, SongBeamer, Ultimate Guitar tabs) and can render to HTML, ChordPro, SongBeamer, or a terminal-friendly view.
+Rust helpers to parse, transform, and render chord-and-lyrics songs. The crate understands common formats (ChordPro, SongBeamer, experimental ProPresenter `.pro`, and Ultimate Guitar tabs) and can render to HTML, ChordPro, SongBeamer, ProPresenter, or a terminal-friendly view.
 
 ## Installation
 
@@ -45,7 +45,7 @@ cargo run --features=bin -- path/to/song.wp -o path/to/song.html
 
 Rendered HTML will be written to the path given after `-o`.
 
-The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.cp`/`.wp`), SongBeamer (`.sng`), HTML, and JSON.
+The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.chopro`/`.cp`/`.wp`), SongBeamer (`.sng`), ProPresenter (`.pro`), HTML, and JSON. Extensions are matched case-insensitively.
 
 SongBeamer input and output preserve metadata, verse order, multilingual lyrics,
 and native `#Chords` data. Input follows SongBeamer's BOM rules (UTF-8,
@@ -59,6 +59,22 @@ cargo run --features=bin -- song.wp -o song.sng
 
 SongBeamer presentation-only settings and the distinct display semantics of
 `--`/`--A` page separators are not represented by chordlib's song model.
+
+Modern protobuf-based ProPresenter `.pro` import and export is experimental.
+It preserves song metadata, cue-group flow, lyrics, the music key, and native
+stage-display chord data. Exported audience text remains lyric-only. Styling,
+media, transitions, layouts, and original slide boundaries are intentionally
+not preserved:
+
+```bash
+cargo run --features=bin -- song.pro -o song.chopro
+cargo run --features=bin -- song.chopro -o song.pro
+```
+
+This support targets standalone current-format presentations, not legacy
+ProPresenter 4–6 XML, bundles, playlists, or library databases. See the
+[ProPresenter compatibility notes](docs/propresenter-compatibility.md) for the
+schema revision, behavior, and known losses.
 
 ChordPro I/O supports **Nashville number notation** for chords: you can load files that use numbers (e.g. `[1][4][5]`, `[1m][4][5]`, `[b7/2]`) when the key is set with a letter name (e.g. `{key: C}`). Numerals are interpreted as scale degrees relative to that key; letter spellings (e.g. `[C]`, `[F]`) are also supported. The `{key: …}` directive must be a letter name, not a number. Use the `--nashville` flag when writing ChordPro to output chords in Nashville form; the key is always written as a letter (e.g. `{key: C}`).
 

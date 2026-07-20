@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file.
 
 ### ✨ Features
 
+- **Experimental ProPresenter input/output** — Read and deterministically write
+  modern protobuf `.pro` presentations with CCLI metadata, arrangements, lyrics,
+  music keys, and native stage-display chord attributes.
+- **ProPresenter CLI conversion** — Route `.pro` input and output
+  case-insensitively while retaining `.chopro`, `.cp`, and `.wp` for ChordPro.
+
 - **SongBeamer input/output** — Read `.sng` files in SongBeamer's supported
   encodings and write deterministic UTF-8/BOM `#Version=3` files with metadata,
   multilingual lyrics, verse order, and native base64 chord positions.

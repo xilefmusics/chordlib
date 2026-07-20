@@ -20,6 +20,8 @@ askama = "0.16.0"
 lazy_static = "1.5.0"
 base64 = "0.22.1"
 encoding_rs = "0.8.35"
+prost = "0.14.1"
+uuid = { version = "1.18.1", features = ["v5"] }
 
 [features]
 html = ["scraper"]

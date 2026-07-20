@@ -1,0 +1,57 @@
+// Minimal wire-compatible schema used by chordlib.
+// Upstream commit: 1b63dda196eb7e079721a8a4a7e7773520cb5ad2
+syntax = "proto3";
+package rv.data;
+
+message UUID { string string = 1; }
+message IntRange { int32 start = 1; int32 end = 2; }
+message Color { float red = 1; float green = 2; float blue = 3; float alpha = 4; }
+message Point { double x = 1; double y = 2; }
+message Size { double width = 1; double height = 2; }
+message Rect { Point origin = 1; Size size = 2; }
+message EdgeInsets { double left = 1; double right = 2; double top = 3; double bottom = 4; }
+message Version { uint32 major_version = 1; uint32 minor_version = 2; uint32 patch_version = 3; string build = 4; }
+message ApplicationInfo { int32 platform = 1; Version platform_version = 2; int32 application = 3; Version application_version = 4; }
+message Font { string name = 1; double size = 2; bool italic = 4; bool bold = 8; string family = 9; string face = 10; }
+message MusicKeyScale { int32 music_key = 1; int32 music_scale = 2; }
+message Group { UUID uuid = 1; string name = 2; Color color = 3; UUID application_group_identifier = 5; string application_group_name = 6; }
+
+message GraphicsText {
+  message ChordPro { bool enabled = 1; int32 notation = 2; Color color = 3; }
+  message Paragraph { int32 alignment = 1; double line_height_multiple = 5; }
+  message CustomAttribute { IntRange range = 1; string chord = 7; }
+  message Attributes { Font font = 1; Color text_solid_fill = 3; Paragraph paragraph_style = 6; repeated CustomAttribute custom_attributes = 13; }
+  Attributes attributes = 3;
+  bytes rtf_data = 5;
+  int32 vertical_alignment = 6;
+  int32 scale_behavior = 7;
+  EdgeInsets margins = 8;
+  ChordPro chord_pro = 12;
+}
+message GraphicsElement { UUID uuid = 1; string name = 2; Rect bounds = 3; double opacity = 5; GraphicsText text = 13; bool hidden = 16; }
+message SlideElement { GraphicsElement element = 1; uint32 info = 4; }
+message Slide { repeated SlideElement elements = 1; Size size = 6; UUID uuid = 7; }
+message PresentationSlide { Slide base_slide = 1; }
+message SlideType { PresentationSlide presentation = 2; }
+message Action { UUID uuid = 1; string name = 2; bool isEnabled = 6; int32 type = 9; SlideType slide = 23; }
+message Cue { UUID uuid = 1; string name = 2; repeated Action actions = 10; bool isEnabled = 12; }
+
+message Presentation {
+  message CCLI { string author = 1; string artist_credits = 2; string song_title = 3; string publisher = 4; uint32 copyright_year = 5; uint32 song_number = 6; bool display = 7; string album = 8; bytes artwork = 9; }
+  message Arrangement { UUID uuid = 1; string name = 2; repeated UUID group_identifiers = 3; }
+  message CueGroup { Group group = 1; repeated UUID cue_identifiers = 2; }
+  message Music { string original_music_key = 1; string user_music_key = 2; MusicKeyScale original = 3; MusicKeyScale user = 4; }
+  ApplicationInfo application_info = 1;
+  UUID uuid = 2;
+  string name = 3;
+  string category = 6;
+  string notes = 7;
+  UUID selected_arrangement = 10;
+  repeated Arrangement arrangements = 11;
+  repeated CueGroup cue_groups = 12;
+  repeated Cue cues = 13;
+  CCLI ccli = 14;
+  int32 content_destination = 19;
+  string music_key = 22;
+  Music music = 23;
+}
