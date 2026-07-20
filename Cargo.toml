@@ -18,6 +18,8 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 askama = "0.16.0"
 lazy_static = "1.5.0"
+base64 = "0.22.1"
+encoding_rs = "0.8.35"
 
 [features]
 html = ["scraper"]

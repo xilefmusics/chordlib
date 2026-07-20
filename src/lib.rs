@@ -1,7 +1,7 @@
 //! Library helpers to parse, transform, and render chord-and-lyrics songs.
 //!
 //! The crate focuses on common song markup formats such as ChordPro and
-//! Ultimate Guitar tabs, while providing renderers for HTML and ChordPro
+//! Ultimate Guitar tabs and SongBeamer songs, while providing renderers for HTML, ChordPro,
 //! outputs. Feature flags:
 //! - `html`: parse and render HTML content.
 //! - `bin`: build the `chordlib` CLI (depends on `clap`).

@@ -1,6 +1,6 @@
 # chordlib
 
-Rust helpers to parse, transform, and render chord-and-lyrics songs. The crate understands common formats (ChordPro, Ultimate Guitar tabs) and can render to HTML, ChordPro, or a terminal-friendly view.
+Rust helpers to parse, transform, and render chord-and-lyrics songs. The crate understands common formats (ChordPro, SongBeamer, Ultimate Guitar tabs) and can render to HTML, ChordPro, SongBeamer, or a terminal-friendly view.
 
 ## Installation
 
@@ -45,7 +45,20 @@ cargo run --features=bin -- path/to/song.wp -o path/to/song.html
 
 Rendered HTML will be written to the path given after `-o`.
 
-The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.cp`/`.wp`), HTML, and JSON.
+The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.cp`/`.wp`), SongBeamer (`.sng`), HTML, and JSON.
+
+SongBeamer input and output preserve metadata, verse order, multilingual lyrics,
+and native `#Chords` data. Input follows SongBeamer's BOM rules (UTF-8,
+UTF-16LE, UTF-16BE, or Windows-1252 when there is no BOM). Output uses the
+portable SongBeamer recommendation of UTF-8 with a BOM and CRLF line endings:
+
+```bash
+cargo run --features=bin -- song.sng -o song.wp
+cargo run --features=bin -- song.wp -o song.sng
+```
+
+SongBeamer presentation-only settings and the distinct display semantics of
+`--`/`--A` page separators are not represented by chordlib's song model.
 
 ChordPro I/O supports **Nashville number notation** for chords: you can load files that use numbers (e.g. `[1][4][5]`, `[1m][4][5]`, `[b7/2]`) when the key is set with a letter name (e.g. `{key: C}`). Numerals are interpreted as scale degrees relative to that key; letter spellings (e.g. `[C]`, `[F]`) are also supported. The `{key: …}` directive must be a letter name, not a number. Use the `--nashville` flag when writing ChordPro to output chords in Nashville form; the key is always written as a letter (e.g. `{key: C}`).
 

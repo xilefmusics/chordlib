@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use chordlib::Error;
-use chordlib::outputs::{FormatChordPro, FormatHTML, FormatRender};
+use chordlib::outputs::{FormatChordPro, FormatHTML, FormatRender, FormatSongBeamer};
 use chordlib::types::{ChordRepresentation, SimpleChord};
 
 #[derive(Debug, Parser)]
@@ -37,12 +37,15 @@ fn main() -> Result<(), Error> {
         ChordRepresentation::Default
     });
 
-    let mut song = if args.input.ends_with(".cp")
-        || args.input.ends_with(".wp")
-        || args.input.ends_with(".chopro")
+    let input_lower = args.input.to_ascii_lowercase();
+    let mut song = if input_lower.ends_with(".cp")
+        || input_lower.ends_with(".wp")
+        || input_lower.ends_with(".chopro")
     {
         chordlib::inputs::chord_pro::load(&args.input)
-    } else if args.input.ends_with(".html") {
+    } else if input_lower.ends_with(".sng") {
+        chordlib::inputs::songbeamer::load(&args.input)
+    } else if input_lower.ends_with(".html") {
         let html = std::fs::read_to_string(&args.input)?;
         chordlib::inputs::ultimate_guitar::load_html(&html)
     } else {
@@ -71,22 +74,28 @@ fn main() -> Result<(), Error> {
         );
     }
 
-    if args.output.ends_with(".cp") || args.output.ends_with(".chopro") {
+    let output_lower = args.output.to_ascii_lowercase();
+    if output_lower.ends_with(".cp") || output_lower.ends_with(".chopro") {
         Ok(std::fs::write(
             args.output,
             (&song).format_chord_pro(None, representation.as_ref(), args.language, false),
         )?)
-    } else if args.output.ends_with(".wp") {
+    } else if output_lower.ends_with(".wp") {
         Ok(std::fs::write(
             args.output,
             (&song).format_chord_pro(None, representation.as_ref(), args.language, true),
         )?)
-    } else if args.output.ends_with(".json") {
+    } else if output_lower.ends_with(".json") {
         Ok(std::fs::write(args.output, serde_json::to_string(&song)?)?)
-    } else if args.output.ends_with(".html") {
+    } else if output_lower.ends_with(".html") {
         Ok(std::fs::write(
             args.output,
             (&song).format_html(None, representation.as_ref(), args.language, None)?,
+        )?)
+    } else if output_lower.ends_with(".sng") {
+        Ok(std::fs::write(
+            args.output,
+            (&song).format_songbeamer(None, representation.as_ref())?,
         )?)
     } else if args.output.is_empty() {
         Ok(())

@@ -4,14 +4,15 @@ These rules are **mandatory** for any AI agent changing this repo.
 
 ### Required checks (definition of done)
 
-- **Tests pass**: Run `cargo test`.
-  - If anything fails, either fix and re-run, or list failing tests and why they weren’t fixed.
+- **Formatting**: Format edited Rust code with `cargo fmt --all`, then run
+  `cargo fmt --all -- --check`.
 
 - **Clippy clean**: Run `cargo clippy --all-features -- -D warnings`.
   - Code must build with **zero Clippy warnings**.
   - If some pre‑existing/externally caused warnings remain, minimize new ones and document what’s left and why.
 
-- **Formatting**: Run `cargo fmt` on edited code; don’t fight `rustfmt`.
+- **Tests pass**: Run `cargo test --verbose`.
+  - If anything fails, either fix and re-run, or list failing tests and why they weren’t fixed.
 
 - **Type check**: `cargo check` (or equivalent CI check) must succeed.
 
@@ -28,7 +29,14 @@ These rules are **mandatory** for any AI agent changing this repo.
 
 These extra tools are not required for every tiny change, but **never break existing CI/tooling** and prefer to run them when working in their area.
 
-GitHub Actions CI enforces these gates by running `cargo fmt --all -- --check`, `cargo clippy --all-features -- -D warnings`, and `cargo test` on every push and pull request targeting `main`.
+GitHub Actions CI runs the following Cargo commands, in this order, on every
+push and pull request targeting `main`. Agents must run all three exactly:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-features -- -D warnings
+cargo test --verbose
+```
 
 ### What every agent must report
 
@@ -63,4 +71,3 @@ All commits to this repo **must** use this format:
   - English only; no emoji in the subject.
   - One logical change per commit where practical.
   - Do **not** bypass hooks; if a hook fails, fix the issue and re-commit instead of forcing.
-
