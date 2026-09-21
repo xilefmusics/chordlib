@@ -150,10 +150,14 @@ impl Chord {
             format!("/{base}")
         });
 
+        let main =
+            self.main
+                .format_with_key_root_spelling(key, representation, self.root_spelling_hint);
+
         format!(
             "{}{}{}{}{}{}",
             if self.optional { "(" } else { "" },
-            self.main.format(key, representation),
+            main,
             self.kind.format(),
             self.var,
             base.unwrap_or_default(),

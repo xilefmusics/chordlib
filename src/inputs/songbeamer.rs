@@ -77,7 +77,7 @@ fn decode_utf16(input: &[u8], little_endian: bool) -> Result<String, Error> {
             "UTF-16 SongBeamer file has an odd byte length".into(),
         ));
     }
-    let units = input.chunks_exact(2).map(|bytes| {
+    let units = input.as_chunks::<2>().0.iter().map(|bytes| {
         if little_endian {
             u16::from_le_bytes([bytes[0], bytes[1]])
         } else {

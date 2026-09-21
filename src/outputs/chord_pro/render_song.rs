@@ -75,9 +75,6 @@ impl FormatChordPro for &Song {
         // Language(s)
         if worship_pro_features {
             for (idx, lang) in self.languages.iter().enumerate() {
-                if lang.is_empty() {
-                    continue;
-                }
                 let key = if idx == 0 {
                     "language".to_string()
                 } else {
