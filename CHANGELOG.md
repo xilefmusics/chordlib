@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.16.0] — Aligned Markdown song format
+
+### ✨ Features
+
+- **Aligned Markdown input/output** — Read and write YAML-front-matter song
+  files with monospace-aligned chord and lyric text, multilingual lines,
+  comments, section repeats, chord durations, and song metadata.
+- **Markdown CLI conversion** — Accept `.md` and `.markdown` files as input
+  and output formats, including case-insensitive extension matching.
+
+---
+
 ## [0.15.0] — SongBeamer and ProPresenter I/O
 
 ### ✨ Features
@@ -283,6 +295,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.16.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.16.0
 [0.15.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.15.0
 [0.14.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.14.0
 [0.13.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.13.0
