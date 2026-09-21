@@ -2,7 +2,7 @@ use clap::Parser;
 
 use chordlib::Error;
 use chordlib::outputs::{
-    FormatChordPro, FormatHTML, FormatProPresenter, FormatRender, FormatSongBeamer,
+    FormatChordPro, FormatHTML, FormatMarkdown, FormatProPresenter, FormatRender, FormatSongBeamer,
 };
 use chordlib::types::{ChordRepresentation, SimpleChord};
 
@@ -52,6 +52,8 @@ fn main() -> Result<(), Error> {
     } else if input_lower.ends_with(".html") {
         let html = std::fs::read_to_string(&args.input)?;
         chordlib::inputs::ultimate_guitar::load_html(&html)
+    } else if input_lower.ends_with(".md") || input_lower.ends_with(".markdown") {
+        chordlib::inputs::markdown::load(&args.input)
     } else {
         Err(Error::Other(format!(
             "unknown input format ({})",
@@ -105,6 +107,11 @@ fn main() -> Result<(), Error> {
         Ok(std::fs::write(
             args.output,
             (&song).format_propresenter(None, representation.as_ref(), args.language)?,
+        )?)
+    } else if output_lower.ends_with(".md") || output_lower.ends_with(".markdown") {
+        Ok(std::fs::write(
+            args.output,
+            (&song).format_markdown(None, representation.as_ref())?,
         )?)
     } else if args.output.is_empty() {
         Ok(())

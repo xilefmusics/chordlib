@@ -1,6 +1,6 @@
 # chordlib
 
-Rust helpers to parse, transform, and render chord-and-lyrics songs. The crate understands common formats (ChordPro, SongBeamer, experimental ProPresenter `.pro`, and Ultimate Guitar tabs) and can render to HTML, ChordPro, SongBeamer, ProPresenter, or a terminal-friendly view.
+Rust helpers to parse, transform, and render chord-and-lyrics songs. The crate understands common formats (ChordPro, Markdown song files, SongBeamer, experimental ProPresenter `.pro`, and Ultimate Guitar tabs) and can render to HTML, Markdown, ChordPro, SongBeamer, ProPresenter, or a terminal-friendly view.
 
 ## Installation
 
@@ -37,7 +37,7 @@ fn main() -> Result<(), chordlib::Error> {
 
 ## CLI quick start
 
-Render a ChordPro/ChordPro-like file to HTML from this repository:
+Render a ChordPro/Markdown song file to HTML from this repository:
 
 ```bash
 cargo run --features=bin -- path/to/song.wp -o path/to/song.html
@@ -45,7 +45,36 @@ cargo run --features=bin -- path/to/song.wp -o path/to/song.html
 
 Rendered HTML will be written to the path given after `-o`.
 
-The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including ChordPro (`.chopro`/`.cp`/`.wp`), SongBeamer (`.sng`), ProPresenter (`.pro`), HTML, and JSON. Extensions are matched case-insensitively.
+The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including Markdown (`.md`/`.markdown`), ChordPro (`.chopro`/`.cp`/`.wp`), SongBeamer (`.sng`), ProPresenter (`.pro`), HTML, and JSON. Extensions are matched case-insensitively.
+
+Markdown song files use YAML front matter followed by raw, monospace-aligned song text:
+
+```markdown
+---
+titles: [Example Song]
+subtitle:
+copyright:
+key: C
+artists: [An Artist]
+languages: [en, de]
+tempo:
+time:
+tags: {}
+---
+# Verse (2x)
+C       G
+Amazing grace
+&C          G
+&Erstaunliche Gnade
+**spoken comment**
+```
+
+Chord durations use the WorshipPro colon notation, in beats: C:4, Am:1.5,
+or G:2.25. The duration is part of the chord token and is preserved during
+Markdown import and export.
+
+Markdown export always emits every metadata field shown above; unavailable values are written as blank values, `[]`, or `{}`.
+Chord rows are detected automatically from whitespace-separated chord tokens. Chord starts must align with the corresponding lyric columns. Translations use WorshipPro-style `&` continuation rows; translated chord rows and lyric rows both receive the `&` prefix. Comments use Markdown bold delimiters. Tabs are rejected because alignment is column-sensitive, and consumers should render the song body with a monospace font while preserving whitespace.
 
 SongBeamer input and output preserve metadata, verse order, multilingual lyrics,
 and native `#Chords` data. Input follows SongBeamer's BOM rules (UTF-8,

@@ -357,6 +357,39 @@ mod tests {
     }
 
     #[test]
+    fn worship_pro_roundtrip_preserves_main_root_spelling_hint() {
+        let input = r#"{title: Root spelling}
+{key: C}
+{language: en}
+{section: Verse}
+[F#]Line
+"#;
+        let song = load_string(input).expect("parse");
+        use crate::outputs::FormatChordPro;
+        let output = (&song).format_chord_pro(None, None, None, true);
+        assert!(output.contains("[F#]Line"), "unexpected output:\n{output}");
+        assert_eq!(load_string(&output).expect("round-trip"), song);
+    }
+
+    #[test]
+    fn worship_pro_roundtrip_preserves_empty_language_metadata_slot() {
+        let input = r#"{title: Empty language}
+{key: C}
+{language: }
+{section: Verse}
+[C]Line
+"#;
+        let song = load_string(input).expect("parse");
+        use crate::outputs::FormatChordPro;
+        let output = (&song).format_chord_pro(None, None, None, true);
+        assert!(
+            output.contains("{language: }"),
+            "unexpected output:\n{output}"
+        );
+        assert_eq!(load_string(&output).expect("round-trip"), song);
+    }
+
+    #[test]
     fn chordpro_parse_line_with_many_slash_chords() {
         let input = r#"{title: Slash line}
 {key: C}
