@@ -45,7 +45,7 @@ cargo run --features=bin -- path/to/song.wp -o path/to/song.html
 
 Rendered HTML will be written to the path given after `-o`.
 
-The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including Markdown (`.md`/`.markdown`), ChordPro (`.chopro`/`.cp`/`.wp`), SongBeamer (`.sng`), ProPresenter (`.pro`), HTML, and JSON. Extensions are matched case-insensitively.
+The CLI supports transposition (`--key`), capo display (`--capo`, one semitone per fret), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including Markdown (`.md`/`.markdown`), ChordPro (`.chopro`/`.cp`/`.wp`), SongBeamer (`.sng`), ProPresenter (`.pro`), HTML, and JSON. The capo option keeps chord shapes in the selected key and shifts the song's key metadata up by the capo amount. HTML displays the resulting key and leaves capo labeling to the surrounding print header. Extensions are matched case-insensitively.
 
 Searchable SongSelect-style chord sheets can be imported from PDF and converted
 to any supported output:

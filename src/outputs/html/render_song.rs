@@ -1,4 +1,6 @@
-use super::{CssTemplate, FormatHTML, HtmlPageTemplate, HtmlTemplate, render_section};
+use super::{
+    CssTemplate, FormatHTML, FormatHTMLWithCapo, HtmlPageTemplate, HtmlTemplate, render_section,
+};
 use crate::Error;
 use crate::types::{ChordRepresentation, SimpleChord, Song};
 use askama::Template;
@@ -18,17 +20,25 @@ impl Song {
         key: Option<&SimpleChord>,
         representation: Option<&ChordRepresentation>,
         language: Option<usize>,
+        capo: Option<u8>,
     ) -> (HtmlRenderContext, String) {
         let language = language.unwrap_or(0);
 
         let self_key = self.key.as_ref().unwrap_or(&SimpleChord::default()).clone();
-        let key = key.unwrap_or(&self_key).clone();
-        let key_str = SimpleChord::default()
-            .format(&key, &ChordRepresentation::Default)
-            .to_string();
+        let base_key = key.unwrap_or(&self_key).clone();
+        let key_str = SimpleChord::default().format(&base_key, &ChordRepresentation::Default);
+        let key_str = match capo {
+            Some(capo) => {
+                let sounding_key = base_key.transpose(capo % 12);
+                SimpleChord::default()
+                    .format(&sounding_key, &ChordRepresentation::Default)
+                    .to_string()
+            }
+            None => key_str.to_string(),
+        };
 
         let ctx = HtmlRenderContext {
-            key,
+            key: base_key,
             representation: representation
                 .cloned()
                 .unwrap_or(ChordRepresentation::Default),
@@ -75,10 +85,7 @@ impl FormatHTML for &Song {
         language: Option<usize>,
         scale: Option<f32>,
     ) -> Result<(Vec<String>, String), Error> {
-        let (ctx, _) = self.html_render_context(key, representation, language);
-        let sections = self.render_section_htmls(&ctx);
-        let css = self.html_css(scale);
-        Ok((sections, css))
+        self.format_html_sections_internal(key, representation, language, scale, None)
     }
 
     fn format_html_page(
@@ -88,8 +95,83 @@ impl FormatHTML for &Song {
         language: Option<usize>,
         scale: Option<f32>,
     ) -> Result<(String, String), Error> {
+        self.format_html_page_internal(key, representation, language, scale, None)
+    }
+
+    fn format_html(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+    ) -> Result<String, Error> {
+        let (page, style) = self.format_html_page(key, representation, language, scale)?;
+        Ok(wrap_html(&page, &style, self.title_for_language(language)))
+    }
+}
+
+impl FormatHTMLWithCapo for &Song {
+    fn format_html_sections_with_capo(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+        capo: u8,
+    ) -> Result<(Vec<String>, String), Error> {
+        self.format_html_sections_internal(key, representation, language, scale, Some(capo))
+    }
+
+    fn format_html_page_with_capo(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+        capo: u8,
+    ) -> Result<(String, String), Error> {
+        self.format_html_page_internal(key, representation, language, scale, Some(capo))
+    }
+
+    fn format_html_with_capo(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+        capo: u8,
+    ) -> Result<String, Error> {
+        let (page, style) =
+            self.format_html_page_with_capo(key, representation, language, scale, capo)?;
+        Ok(wrap_html(&page, &style, self.title_for_language(language)))
+    }
+}
+
+impl Song {
+    fn format_html_sections_internal(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+        capo: Option<u8>,
+    ) -> Result<(Vec<String>, String), Error> {
+        let (ctx, _) = self.html_render_context(key, representation, language, capo);
+        let sections = self.render_section_htmls(&ctx);
+        let css = self.html_css(scale);
+        Ok((sections, css))
+    }
+
+    fn format_html_page_internal(
+        &self,
+        key: Option<&SimpleChord>,
+        representation: Option<&ChordRepresentation>,
+        language: Option<usize>,
+        scale: Option<f32>,
+        capo: Option<u8>,
+    ) -> Result<(String, String), Error> {
         let language = language.unwrap_or(0);
-        let (ctx, key_str) = self.html_render_context(key, representation, Some(language));
+        let (ctx, key_str) = self.html_render_context(key, representation, Some(language), capo);
         let section_htmls = self.render_section_htmls(&ctx);
 
         let selected_artist = if self.artists.is_empty() {
@@ -132,17 +214,6 @@ impl FormatHTML for &Song {
         );
 
         Ok((page_template.render().unwrap(), self.html_css(scale)))
-    }
-
-    fn format_html(
-        &self,
-        key: Option<&SimpleChord>,
-        representation: Option<&ChordRepresentation>,
-        language: Option<usize>,
-        scale: Option<f32>,
-    ) -> Result<String, Error> {
-        let (page, style) = self.format_html_page(key, representation, language, scale)?;
-        Ok(wrap_html(&page, &style, self.title_for_language(language)))
     }
 }
 
@@ -199,6 +270,31 @@ mod tests {
         assert!(sections[1].contains("<span class=\"keyword\">Chorus</span>"));
         assert!(!sections[0].contains("<div class=\"page\">"));
         assert!(!css.is_empty());
+    }
+
+    #[test]
+    fn capo_labels_sounding_key_and_preserves_html_chord_shapes() {
+        let input = r#"{title: Capo}
+{key: G}
+{section: Verse}
+[G]Line
+"#;
+        let song = load_string(input).expect("parse");
+        let rep = ChordRepresentation::Default;
+
+        let html = (&song)
+            .format_html_with_capo(None, Some(&rep), None, None, 4)
+            .expect("render with capo");
+        assert!(html.contains("Key B"));
+        assert!(!html.contains("Capo 4"));
+        assert!(!html.contains("Key (G Capo 4)"));
+        assert!(html.contains(r#"<span class="chord">G</span>"#));
+
+        let unchanged = (&song)
+            .format_html(None, Some(&rep), None, None)
+            .expect("render without capo");
+        assert!(unchanged.contains("Key G"));
+        assert!(unchanged.contains(r#"<span class="chord">G</span>"#));
     }
 
     #[test]

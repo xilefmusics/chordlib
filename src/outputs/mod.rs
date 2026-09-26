@@ -9,7 +9,7 @@ mod songbeamer;
 
 pub use charpage::{CharPage, CharPageSet, FormatCharPages};
 pub use chord_pro::FormatChordPro;
-pub use html::{FormatHTML, render_section, wrap_html};
+pub use html::{FormatHTML, FormatHTMLWithCapo, render_section, wrap_html};
 pub use markdown::FormatMarkdown;
 pub(crate) use outputline::repeat_label;
 pub use outputline::{FormatOutputLines, OutputLine};

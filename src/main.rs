@@ -2,7 +2,8 @@ use clap::Parser;
 
 use chordlib::Error;
 use chordlib::outputs::{
-    FormatChordPro, FormatHTML, FormatMarkdown, FormatProPresenter, FormatRender, FormatSongBeamer,
+    FormatChordPro, FormatHTML, FormatHTMLWithCapo, FormatMarkdown, FormatProPresenter,
+    FormatRender, FormatSongBeamer,
 };
 use chordlib::types::{ChordRepresentation, SimpleChord};
 
@@ -19,6 +20,9 @@ struct Args {
     pub output: String,
     #[arg(short, long)]
     pub key: Option<u8>,
+    /// Set a capo fret; shift key metadata while preserving chord shapes
+    #[arg(long)]
+    pub capo: Option<u8>,
     #[arg(short, long, default_value_t = false)]
     pub vowel_move: bool,
     #[arg(short, long, default_value_t = false)]
@@ -75,12 +79,18 @@ fn main() -> Result<(), Error> {
         song.apply_key(SimpleChord::new(key));
     }
 
+    let base_key = song.key.as_ref().unwrap_or(&SimpleChord::default()).clone();
     if args.vowel_move {
         song = song.move_chords_to_next_vowels();
     }
 
     if args.spacing_remove {
         song = song.remove_manual_spacing();
+    }
+
+    let html_song = song.clone();
+    if let Some(capo) = args.capo {
+        apply_capo(&mut song, &base_key, capo);
     }
 
     if args.render {
@@ -104,10 +114,17 @@ fn main() -> Result<(), Error> {
     } else if output_lower.ends_with(".json") {
         Ok(std::fs::write(args.output, serde_json::to_string(&song)?)?)
     } else if output_lower.ends_with(".html") {
-        Ok(std::fs::write(
-            args.output,
-            (&song).format_html(None, representation.as_ref(), args.language, None)?,
-        )?)
+        let html = match args.capo {
+            Some(capo) => (&html_song).format_html_with_capo(
+                Some(&base_key),
+                representation.as_ref(),
+                args.language,
+                None,
+                capo,
+            )?,
+            None => (&song).format_html(None, representation.as_ref(), args.language, None)?,
+        };
+        Ok(std::fs::write(args.output, html)?)
     } else if output_lower.ends_with(".sng") {
         Ok(std::fs::write(
             args.output,
@@ -132,4 +149,21 @@ fn main() -> Result<(), Error> {
         )))
     }?;
     Ok(())
+}
+
+fn apply_capo(song: &mut chordlib::types::Song, base_key: &SimpleChord, capo: u8) {
+    let capo = capo % 12;
+    let chord_shift = (12 - capo) % 12;
+
+    if chord_shift != 0 {
+        for section in &mut song.sections {
+            for line in &mut section.lines {
+                for part in &mut line.parts {
+                    part.chord = part.chord.take().map(|chord| chord.transpose(chord_shift));
+                }
+            }
+        }
+    }
+
+    song.apply_key(base_key.transpose(capo));
 }
