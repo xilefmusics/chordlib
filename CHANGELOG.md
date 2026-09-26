@@ -6,6 +6,23 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.17.0] — PDF import and capo-aware rendering
+
+### ✨ Features
+
+- **PDF song import** — Import searchable SongSelect-style chord sheets,
+  including song metadata, sections, lyrics, and chords, then convert them to
+  supported output formats.
+- **Capo-aware rendering** — Add the CLI `--capo` option and HTML APIs that
+  preserve chord shapes while updating the sounding key metadata.
+
+### 🐛 Fixes
+
+- **Markdown chord-only rows** — Keep adjacent chord tokens separated so
+  chord-only lines round-trip without being parsed as lyric text.
+
+---
+
 ## [0.16.0] — Aligned Markdown song format
 
 ### ✨ Features
@@ -295,6 +312,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.17.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.17.0
 [0.16.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.16.0
 [0.15.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.15.0
 [0.14.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.14.0
