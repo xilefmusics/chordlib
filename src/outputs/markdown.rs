@@ -142,6 +142,11 @@ fn render_line(
 ) -> Result<RenderedLine, Error> {
     let mut chord_row = String::new();
     let mut text_row = String::new();
+    let has_text = line.parts.iter().any(|part| {
+        part.languages
+            .get(language)
+            .is_some_and(|text| !text.is_empty())
+    });
 
     for part in &line.parts {
         let text = part
@@ -151,25 +156,32 @@ fn render_line(
             .unwrap_or("");
 
         if let Some(chord) = &part.chord {
-            let column = text_row.width();
+            let mut column = text_row.width();
             let current_width = chord_row.width();
             if !chord_row.is_empty() && current_width >= column {
-                // Preserve the chord's attachment point by moving the following lyric text
-                // right until the previous chord label has room to finish and a whitespace
-                // separator keeps adjacent chord tokens parseable. A dash marks padding that
-                // occurs inside a word so the parser can remove it on a round trip.
-                let padding_width = current_width + 1 - column;
-                let inner_word = text_row
-                    .chars()
-                    .next_back()
-                    .is_some_and(|character| !character.is_whitespace())
-                    && text
+                if !has_text {
+                    // Chord-only lines have no lyric column to move. Separate adjacent
+                    // chord tokens directly in the chord row so padding does not become
+                    // part of the first chord's lyric when the file is parsed again.
+                    column = current_width + 1;
+                } else {
+                    // Preserve the chord's attachment point by moving the following lyric
+                    // text right until the previous chord label has room to finish and a
+                    // whitespace separator keeps adjacent chord tokens parseable. A dash
+                    // marks padding inside a word so the parser can remove it on a round trip.
+                    let padding_width = current_width + 1 - column;
+                    let inner_word = text_row
                         .chars()
-                        .next()
-                        .is_some_and(|character| !character.is_whitespace());
-                text_row.push_str(&alignment_padding(padding_width, inner_word));
+                        .next_back()
+                        .is_some_and(|character| !character.is_whitespace())
+                        && text
+                            .chars()
+                            .next()
+                            .is_some_and(|character| !character.is_whitespace());
+                    text_row.push_str(&alignment_padding(padding_width, inner_word));
+                    column = text_row.width();
+                }
             }
-            let column = text_row.width();
             let current_width = chord_row.width();
             chord_row.extend(std::iter::repeat_n(' ', column - current_width));
             chord_row.push_str(&chord.format_chord_pro(
@@ -313,9 +325,12 @@ mod tests {
         let output = (&song)
             .format_markdown(None, None)
             .expect("Markdown output should repair chord spacing");
-        assert!(output.contains("C G\n"), "unexpected output:\n{output}");
+        assert!(output.contains("C G\n\n"), "unexpected output:\n{output}");
         let again = load_string(&output).expect("repaired Markdown should parse");
-        assert_eq!(again.sections[0].lines[0].parts.len(), 2);
+        let parts = &again.sections[0].lines[0].parts;
+        assert_eq!(parts.len(), 2);
+        assert!(parts.iter().all(|part| part.chord.is_some()));
+        assert!(parts.iter().all(|part| part.languages.is_empty()));
     }
 
     #[test]
