@@ -9,7 +9,7 @@ mod render_section;
 mod render_song;
 
 use css_template::CssTemplate;
-pub use format_html::FormatHTML;
+pub use format_html::{FormatHTML, FormatHTMLWithCapo};
 use html_page_template::HtmlPageTemplate;
 use html_template::HtmlTemplate;
 pub use render_section::render_section;
