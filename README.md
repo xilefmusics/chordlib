@@ -47,6 +47,19 @@ Rendered HTML will be written to the path given after `-o`.
 
 The CLI supports transposition (`--key`), Nashville notation (`--nashville`), vowel-based chord shifting (`--vowel-move`), and output formats including Markdown (`.md`/`.markdown`), ChordPro (`.chopro`/`.cp`/`.wp`), SongBeamer (`.sng`), ProPresenter (`.pro`), HTML, and JSON. Extensions are matched case-insensitively.
 
+Searchable SongSelect-style chord sheets can be imported from PDF and converted
+to any supported output:
+
+```bash
+cargo run --features=bin -- song.pdf -o song.md
+```
+
+PDF input uses a pure Rust backend and needs no native PDF runtime. It supports
+the single-column text layout described in
+[`docs/pdf-input-plan.md`](docs/pdf-input-plan.md). Scanned PDFs, text rendered
+as vector outlines, and materially different or multi-column layouts are not
+supported; OCR is not performed.
+
 Markdown song files use YAML front matter followed by raw, monospace-aligned song text:
 
 ```markdown
