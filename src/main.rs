@@ -9,7 +9,7 @@ use chordlib::types::{ChordRepresentation, SimpleChord};
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Input song file (ChordPro, SongBeamer, ProPresenter, or Ultimate Guitar HTML)
+    /// Input song file (ChordPro, Markdown, PDF, SongBeamer, ProPresenter, or Ultimate Guitar HTML)
     pub input: String,
     /// A boolean flag if the song should be rendered to the stdout
     #[arg(short, long, default_value_t = false)]
@@ -50,8 +50,18 @@ fn main() -> Result<(), Error> {
     } else if input_lower.ends_with(".pro") {
         chordlib::inputs::propresenter::load(&args.input)
     } else if input_lower.ends_with(".html") {
-        let html = std::fs::read_to_string(&args.input)?;
-        chordlib::inputs::ultimate_guitar::load_html(&html)
+        #[cfg(feature = "html")]
+        let result = {
+            let html = std::fs::read_to_string(&args.input)?;
+            chordlib::inputs::ultimate_guitar::load_html(&html)
+        };
+        #[cfg(not(feature = "html"))]
+        let result = Err(Error::Other(
+            "Ultimate Guitar HTML input requires the `html` feature".into(),
+        ));
+        result
+    } else if input_lower.ends_with(".pdf") {
+        chordlib::inputs::pdf::load(&args.input)
     } else if input_lower.ends_with(".md") || input_lower.ends_with(".markdown") {
         chordlib::inputs::markdown::load(&args.input)
     } else {

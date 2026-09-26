@@ -24,6 +24,9 @@ encoding_rs = "0.8.35"
 prost = "0.14.1"
 uuid = { version = "1.18.1", features = ["v5"] }
 unicode-width = "0.2.0"
+pdf_oxide = { version = "=0.3.78", default-features = false }
+# Constrain pdf_oxide's range to the office_oxide API version it currently compiles against.
+office_oxide = { version = "=0.1.9", default-features = false }
 
 [features]
 html = ["scraper"]
