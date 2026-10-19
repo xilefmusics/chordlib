@@ -118,7 +118,7 @@ ProPresenter 4–6 XML, bundles, playlists, or library databases. See the
 [ProPresenter compatibility notes](docs/propresenter-compatibility.md) for the
 schema revision, behavior, and known losses.
 
-ChordPro I/O supports **Nashville number notation** for chords: you can load files that use numbers (e.g. `[1][4][5]`, `[1m][4][5]`, `[b7/2]`) when the key is set with a letter name (e.g. `{key: C}`). Numerals are interpreted as scale degrees relative to that key; letter spellings (e.g. `[C]`, `[F]`) are also supported. The `{key: …}` directive must be a letter name, not a number. Use the `--nashville` flag when writing ChordPro to output chords in Nashville form; the key is always written as a letter (e.g. `{key: C}`).
+ChordPro I/O supports **Nashville number notation** for chords: you can load files that use numbers (e.g. `[1][4][5]`, `[1m][4][5]`, `[b7/2]`) when the key is set with a letter name (e.g. `{key: C}`). Numerals are interpreted as scale degrees relative to that key; letter spellings (e.g. `[C]`, `[F]`) are also supported. Sharp degrees are accepted on input too (e.g. `[3/#5]`), then formatted with the equivalent flat degree (`3/b6`). The `{key: …}` directive must be a letter name, not a number. Use the `--nashville` flag when writing ChordPro to output chords in Nashville form; the key is always written as a letter (e.g. `{key: C}`).
 
 To parse an Ultimate Guitar tab from HTML, first obtain the HTML (for example by saving the page in a browser), read it into a string, and then call `chordlib::inputs::ultimate_guitar::load_html(&html)` from your own code. The library no longer performs live HTTP requests to Ultimate Guitar.
 
