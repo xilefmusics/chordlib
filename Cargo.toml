@@ -2,6 +2,7 @@
 name = "chordlib"
 version = "0.17.0"
 edition = "2024"
+rust-version = "1.89"
 description = "Work with chord-and-lyrics songs: parse, transform, and render them to multiple formats"
 license = "AGPL-3.0-only"
 repository = "https://github.com/xilefmusics/chordlib"
@@ -12,21 +13,22 @@ keywords = ["chords", "lyrics", "guitar", "chordpro", "songs"]
 categories = ["multimedia::audio", "command-line-utilities"]
 
 [dependencies]
-clap = { version = "4.6.1", features = ["derive"], optional = true }
-scraper = { version = "0.27.0", optional = true }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-serde_yaml = "0.9.34"
-askama = "0.16.0"
-lazy_static = "1.5.0"
-base64 = "0.22.1"
-encoding_rs = "0.8.35"
-prost = "0.14.1"
-uuid = { version = "1.18.1", features = ["v5"] }
-unicode-width = "0.2.0"
+clap = { version = "4.6.7", features = ["derive"], optional = true }
+scraper = { version = "0.29.0", optional = true }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+serde_yaml = { package = "noyalib-serde-yaml", version = "=0.0.58" }
+askama = "0.16.1"
+lazy_static = "1.5.1"
+base64 = "0.23.1"
+noyalib = { version = "=0.0.58", default-features = false, features = ["std", "compat-serde-yaml"] }
+encoding_rs = "0.8.42"
+prost = "0.14.4"
+uuid = { version = "1.28.0", features = ["v5"] }
+unicode-width = "0.2.2"
 pdf_oxide = { version = "=0.3.78", default-features = false }
-# Constrain pdf_oxide's range to the office_oxide API version it currently compiles against.
-office_oxide = { version = "=0.1.9", default-features = false }
+# Pin to a release compatible with pdf_oxide's DocumentIR API.
+office_oxide = { version = "=0.1.15", default-features = false }
 
 [features]
 html = ["scraper"]
