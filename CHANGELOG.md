@@ -6,6 +6,20 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.18.0] — Nashville sharp degrees and translation alignment
+
+### ✨ Features
+
+- **Nashville sharp scale degrees** — Accept sharp degree spellings on input
+  (for example, `#5`) and format them using the equivalent flat degree (`b6`).
+
+### 🐛 Fixes
+
+- **Worship Pro translated lyrics** — Keep translated lyrics aligned with
+  their corresponding chords, including lyrics before the first chord.
+
+---
+
 ## [0.17.0] — PDF import and capo-aware rendering
 
 ### ✨ Features
@@ -312,6 +326,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.18.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.0
 [0.17.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.17.0
 [0.16.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.16.0
 [0.15.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.15.0
