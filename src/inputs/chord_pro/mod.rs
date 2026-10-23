@@ -56,6 +56,137 @@ fn parse_repeat_directive(line: &str) -> Result<Option<u32>, Error> {
     }
 }
 
+fn leading_lyric_part(parts: &[Part]) -> Option<usize> {
+    let first_chord = parts
+        .iter()
+        .position(|part| part.chord.is_some())
+        .unwrap_or(parts.len());
+    parts[..first_chord].iter().position(|part| !part.comment)
+}
+
+fn non_chord_part_slots(
+    parts: &[Part],
+    leading_lyric: Option<usize>,
+) -> BTreeMap<(usize, bool, usize), usize> {
+    let mut slots = BTreeMap::new();
+    let mut ordinals = BTreeMap::<(usize, bool), usize>::new();
+
+    for (index, part) in parts.iter().enumerate() {
+        if part.chord.is_some() || Some(index) == leading_lyric {
+            continue;
+        }
+
+        let chord_count = parts[..index]
+            .iter()
+            .filter(|part| part.chord.is_some())
+            .count();
+        let group = (chord_count, part.comment);
+        let ordinal = ordinals.entry(group).or_default();
+        slots.insert((chord_count, part.comment, *ordinal), index);
+        *ordinal += 1;
+    }
+
+    slots
+}
+
+fn merge_chorded_translation(
+    base_parts: &mut Vec<Part>,
+    translated_parts: Vec<Part>,
+    language_index: usize,
+) {
+    let base_chord_indices: Vec<_> = base_parts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, part)| part.chord.is_some().then_some(index))
+        .collect();
+    let translated_chord_indices: Vec<_> = translated_parts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, part)| part.chord.is_some().then_some(index))
+        .collect();
+
+    // Bracket syntax can enter this branch without containing actual chords
+    // (for example, an empty chord marker). Preserve the legacy positional
+    // merge for those lines.
+    if base_chord_indices.is_empty() {
+        for (base_part, translated_part) in base_parts.iter_mut().zip(translated_parts) {
+            if base_part.languages.len() < language_index.saturating_add(1) {
+                base_part
+                    .languages
+                    .resize(language_index.saturating_add(1), String::new());
+            }
+            base_part.languages[language_index] = translated_part
+                .languages
+                .first()
+                .cloned()
+                .unwrap_or_default();
+        }
+        return;
+    }
+
+    for part in base_parts.iter_mut() {
+        part.languages
+            .resize(language_index.saturating_add(1), String::new());
+    }
+
+    let mut base_leading_lyric = leading_lyric_part(base_parts);
+    let translated_leading_lyric = leading_lyric_part(&translated_parts);
+    if let Some(base_index) = base_leading_lyric {
+        base_parts[base_index].languages[language_index] = translated_leading_lyric
+            .map(|index| {
+                translated_parts[index]
+                    .languages
+                    .first()
+                    .cloned()
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
+    } else if let Some(translated_index) = translated_leading_lyric {
+        let mut languages = vec![String::new(); language_index.saturating_add(1)];
+        languages[language_index] = translated_parts[translated_index]
+            .languages
+            .first()
+            .cloned()
+            .unwrap_or_default();
+        base_parts.insert(
+            0,
+            Part {
+                chord: None,
+                languages,
+                comment: false,
+            },
+        );
+        base_leading_lyric = Some(0);
+    }
+
+    let base_chord_indices: Vec<_> = base_parts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, part)| part.chord.is_some().then_some(index))
+        .collect();
+    for (base_index, translated_index) in
+        base_chord_indices.into_iter().zip(translated_chord_indices)
+    {
+        base_parts[base_index].languages[language_index] = translated_parts[translated_index]
+            .languages
+            .first()
+            .cloned()
+            .unwrap_or_default();
+    }
+
+    let base_slots = non_chord_part_slots(base_parts, base_leading_lyric);
+    let translated_slots = non_chord_part_slots(&translated_parts, translated_leading_lyric);
+    for (slot, translated_index) in translated_slots {
+        if let Some(base_index) = base_slots.get(&slot) {
+            base_parts[*base_index].languages[language_index] = translated_parts[translated_index]
+                .languages
+                .first()
+                .cloned()
+                .unwrap_or_default();
+        }
+    }
+}
+
 fn build_section_from_lines<'a, F>(
     keyword: &str,
     lines: &[&'a str],
@@ -170,16 +301,7 @@ where
                     .map(|p| p.languages.len())
                     .max()
                     .unwrap_or(0);
-
-                for (prev_part, new_part) in last_line.parts.iter_mut().zip(new_parts) {
-                    if prev_part.languages.len() < new_lang_idx.saturating_add(1) {
-                        prev_part
-                            .languages
-                            .resize(new_lang_idx.saturating_add(1), String::new());
-                    }
-                    let text = new_part.languages.first().cloned().unwrap_or_default();
-                    prev_part.languages[new_lang_idx] = text;
-                }
+                merge_chorded_translation(&mut last_line.parts, new_parts, new_lang_idx);
             }
         } else {
             let parts = make_iter(line).collect::<Result<Vec<Part>, Error>>()?;
@@ -923,6 +1045,61 @@ Zeile 1
         assert_eq!(line.parts.len(), 2);
         assert_eq!(line.parts[0].languages, vec!["Hallo ", "Hello "]);
         assert_eq!(line.parts[1].languages, vec!["Welt", "World"]);
+    }
+
+    #[test]
+    fn worship_pro_ampersand_matches_chords_when_leading_lyric_lengths_differ_issue_267() {
+        let input = r#"{title: Test}
+{key: B}
+{section: Verse}
+x[1]a
+&[1]b
+"#;
+        let song = load_string(input).expect("parse");
+        let line = &song.sections[0].lines[0];
+        assert_eq!(line.parts.len(), 2);
+        assert_eq!(line.parts[0].languages, vec!["x", ""]);
+        assert_eq!(line.parts[1].languages, vec!["a", "b"]);
+
+        use crate::outputs::FormatChordPro;
+        let output =
+            (&song).format_chord_pro(None, Some(&ChordRepresentation::Default), None, true);
+        assert!(
+            output.contains("x[B]a\n&[B]b"),
+            "translated chord should remain before its lyric, got:\n{output}"
+        );
+
+        let reopened = load_string(&output).expect("reopen saved source");
+        let reopened_line = &reopened.sections[0].lines[0];
+        assert_eq!(reopened_line.parts[0].languages, vec!["x", ""]);
+        assert_eq!(reopened_line.parts[1].languages, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn worship_pro_ampersand_preserves_translated_leading_lyrics() {
+        let input = r#"{title: Test}
+{key: B}
+{section: Verse}
+[1]a
+&x[1]b
+"#;
+        let song = load_string(input).expect("parse");
+
+        use crate::outputs::FormatChordPro;
+        let output =
+            (&song).format_chord_pro(None, Some(&ChordRepresentation::Default), None, true);
+        assert!(
+            output.contains("[B]a\n&x[B]b"),
+            "translated leading lyric should stay before its chord, got:\n{output}"
+        );
+
+        let reopened = load_string(&output).expect("reopen saved source");
+        let reopened_output =
+            (&reopened).format_chord_pro(None, Some(&ChordRepresentation::Default), None, true);
+        assert!(
+            reopened_output.contains("[B]a\n&x[B]b"),
+            "save/reopen should preserve translated leading lyric, got:\n{reopened_output}"
+        );
     }
 
     #[test]
