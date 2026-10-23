@@ -1,4 +1,4 @@
-use serde_yaml::to_string;
+use noyalib::{SerializerConfig, to_string_with_config};
 use unicode_width::UnicodeWidthStr;
 
 use crate::Error;
@@ -59,8 +59,11 @@ impl FormatMarkdown for &Song {
             tags: self.tags.clone(),
         };
 
-        let yaml = to_string(&front_matter)
-            .map_err(|error| Error::Serialize(format!("markdown front matter: {error}")))?;
+        let yaml = to_string_with_config(
+            &front_matter,
+            &SerializerConfig::new().compact_list_indent(true),
+        )
+        .map_err(|error| Error::Serialize(format!("markdown front matter: {error}")))?;
         let yaml = yaml
             .lines()
             .map(|line| match line {

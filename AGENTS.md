@@ -8,6 +8,7 @@ These rules are **mandatory** for any AI agent changing this repo.
   `cargo fmt --all -- --check`.
 
 - **Clippy clean**: Run `cargo clippy --all-features -- -D warnings`.
+  - This is the repository's Rust lint check (`cargo lint` is not a built-in Cargo command).
   - Code must build with **zero Clippy warnings**.
   - If some pre‑existing/externally caused warnings remain, minimize new ones and document what’s left and why.
 
@@ -18,24 +19,34 @@ These rules are **mandatory** for any AI agent changing this repo.
 
 - **Docs build**: `cargo doc --no-deps` must succeed for modified crates.
 
+- **Dependency security audit**: Run `cargo audit` to check `Cargo.lock` against
+  the RustSec Advisory Database. Install the command if needed with
+  `cargo install cargo-audit --locked`. Resolve reported vulnerabilities or
+  document why an advisory does not apply before adding a narrow exception.
+
 ### When touching dependencies or critical code
 
-- **Dependencies**: If you change `Cargo.toml` / `Cargo.lock`, prefer to run:
-  - `cargo audit` (vulns) and, if configured, `cargo deny` (policy).
-  - If they report issues you can’t fix, document which remain and why.
+- **Dependency policy**: If you change `Cargo.toml` / `Cargo.lock`, also run
+  `cargo deny check` when the repository has a `deny.toml` configuration. If
+  audit or policy checks report issues you can’t fix, document which remain
+  and why.
 - **No unused deps**: Don’t leave unused crates in `Cargo.toml`. If `cargo udeps` is used, don’t add new unused deps (or explain clearly why they remain).
 - **Unsafe / perf‑sensitive code**:
   - Where already used in this repo, prefer `cargo miri test` for `unsafe` and `cargo bench` (or project benchmarks) for perf‑critical changes. Avoid regressions.
 
-These extra tools are not required for every tiny change, but **never break existing CI/tooling** and prefer to run them when working in their area.
+Miri and benchmark checks are not required for every tiny change, but **never break existing CI/tooling** and prefer to run them when working in their area.
 
-GitHub Actions CI runs the following Cargo commands, in this order, on every
-push and pull request targeting `main`. Agents must run all three exactly:
+GitHub Actions CI runs the following checks, in this order, on every push and
+pull request targeting `main`. Agents must run these checks:
 
 ```bash
 cargo fmt --all -- --check
 cargo clippy --all-features -- -D warnings
+cargo check
 cargo test --verbose
+cargo doc --no-deps
+cargo install cargo-audit --locked  # only if cargo-audit is not installed
+cargo audit
 ```
 
 ### What every agent must report
