@@ -142,6 +142,25 @@ pub fn parse_nashville_root_prefix(s: &str) -> Option<(&str, u8)> {
             return Some((rest, interval));
         }
     }
+
+    // Accept sharp spellings on input too. Nashville output uses the flat
+    // spelling table above, so these intervals will format back as their
+    // enharmonic flat degrees (for example, #5 as b6).
+    static SHARP_ROOTS: &[(&str, u8)] = &[
+        ("#1", 1),
+        ("#2", 3),
+        ("#3", 5),
+        ("#4", 6),
+        ("#5", 8),
+        ("#6", 10),
+        ("#7", 0),
+    ];
+    for &(sym, interval) in SHARP_ROOTS {
+        if let Some(rest) = s.strip_prefix(sym) {
+            return Some((rest, interval));
+        }
+    }
+
     None
 }
 

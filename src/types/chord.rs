@@ -400,6 +400,29 @@ mod test {
     }
 
     #[test]
+    fn nashville_sharp_degrees_parse_as_enharmonic_flats() {
+        let key = SimpleChord::try_from("C").unwrap();
+        let rep = ChordRepresentation::Nashville;
+
+        let chord = Chord::from_str_with_key("3/#5", Some(&key)).unwrap();
+        assert_eq!(chord.format(&key, &rep), "3/b6");
+
+        for (sharp, flat) in [
+            ("#1", "b2"),
+            ("#2", "b3"),
+            ("#3", "4"),
+            ("#4", "b5"),
+            ("#5", "b6"),
+            ("#6", "b7"),
+            ("#7", "1"),
+        ] {
+            let sharp_chord = Chord::from_str_with_key(sharp, Some(&key)).unwrap();
+            let flat_chord = Chord::from_str_with_key(flat, Some(&key)).unwrap();
+            assert_eq!(sharp_chord, flat_chord, "{sharp} should match {flat}");
+        }
+    }
+
+    #[test]
     fn chord_from_str() {
         let inputs = vec![
             "", "A", "Bb", "C#", "D°", "E+", "Fdim", "Gaug", "Gbaug", "A/B", "C#m/G#", "Asus",
