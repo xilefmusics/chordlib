@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.18.1] — Translated lyric fallback fix
+
+### 🐛 Fixes
+
+- **Translated lyric fallback** — Preserve explicitly empty translated
+  fragments so primary-language text does not leak into translated chord sheets. (#275)
+
+---
+
 ## [0.18.0] — Nashville sharp degrees and translation alignment
 
 ### ✨ Features
@@ -326,6 +335,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.18.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.1
 [0.18.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.0
 [0.17.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.17.0
 [0.16.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.16.0
