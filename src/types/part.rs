@@ -169,11 +169,9 @@ impl Part {
     }
 
     /// Returns the text for the given language index, falling back to the first
-    /// language when the requested entry is missing or empty.
+    /// language only when the requested entry is missing.
     pub fn text_for_language(&self, language: usize) -> &str {
-        if let Some(candidate) = self.languages.get(language)
-            && !candidate.is_empty()
-        {
+        if let Some(candidate) = self.languages.get(language) {
             return candidate;
         }
         self.languages
@@ -204,13 +202,16 @@ mod tests {
     }
 
     #[test]
-    fn text_for_language_falls_back_to_first_when_missing_or_empty() {
+    fn text_for_language_falls_back_to_first_when_missing() {
         let part = part_with_langs(vec!["de".to_string()]);
         assert_eq!(part.text_for_language(1), "de");
         assert_eq!(part.text_for_language(5), "de");
+    }
 
+    #[test]
+    fn text_for_language_preserves_an_explicit_empty_translation() {
         let part_empty_second = part_with_langs(vec!["de".to_string(), String::new()]);
-        assert_eq!(part_empty_second.text_for_language(1), "de");
+        assert_eq!(part_empty_second.text_for_language(1), "");
     }
 
     #[test]

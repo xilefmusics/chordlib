@@ -153,6 +153,7 @@ pub fn render_line(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::inputs::chord_pro::load_string;
     use crate::types::{Chord, Line, Part};
     use std::str::FromStr;
 
@@ -197,5 +198,36 @@ mod tests {
 
         assert!(html_lang1.contains("Only English"));
         assert!(!html_lang1.contains("Nur Deutsch"));
+    }
+
+    #[test]
+    fn render_line_does_not_fallback_for_an_empty_fragment_in_an_explicit_translation() {
+        let song = load_string(
+            "{title: Minimal reproduction}\n{key: G}\n{language: de}\n{language2: en}\
+             \n{section: Test}\nD[G]u\n&[G]All\n",
+        )
+        .expect("parse song");
+        let line = &song.sections[0].lines[0];
+        let html = render_line(
+            line,
+            song.key.as_ref().expect("song key"),
+            &ChordRepresentation::Default,
+            1,
+        );
+
+        assert!(
+            html.contains("All"),
+            "translated lyric should render: {html}"
+        );
+        assert!(
+            !html.contains("D"),
+            "primary-language leading lyric should not leak: {html}"
+        );
+        assert!(
+            html.contains(
+                "<span class=\"part part-has-chord\"><span class=\"chord\">G</span><span class=\"text\">All</span></span>"
+            ),
+            "G should remain attached to the translated lyric: {html}"
+        );
     }
 }
