@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+---
+
+## [0.18.2] — Empty translated lyric fragments
+
 ### 🐛 Fixes
 
 - **Empty translated lyric fragments** — Ignore empty chordless fragments
@@ -341,6 +345,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.18.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.2
 [0.18.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.1
 [0.18.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.0
 [0.17.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.17.0
