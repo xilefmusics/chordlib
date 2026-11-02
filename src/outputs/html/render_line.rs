@@ -78,8 +78,16 @@ impl<'a> LineRenderer<'a> {
     }
 
     fn update_next_part(&mut self) {
-        self.next_part = self.parts.next().map(|p| {
+        self.next_part = self.parts.find_map(|p| {
             let next_text = p.text_for_language(self.language);
+            // An empty translated fragment with no chord has no visible layout
+            // role. Ignore it when joining adjacent lyric parts so it cannot
+            // create a synthetic word boundary or hyphen. Keep chorded empty
+            // parts because their chord still needs to stay aligned.
+            if next_text.is_empty() && p.chord.is_none() {
+                return None;
+            }
+
             let mut first = None;
             let mut last = None;
             let mut starts_with = false;
@@ -100,7 +108,7 @@ impl<'a> LineRenderer<'a> {
                 }
             }
 
-            (p, first, last, starts_with, ends_with)
+            Some((p, first, last, starts_with, ends_with))
         });
     }
 
@@ -201,7 +209,7 @@ mod tests {
     }
 
     #[test]
-    fn render_line_does_not_fallback_for_an_empty_fragment_in_an_explicit_translation() {
+    fn render_line_skips_an_empty_fragment_before_the_translated_chord() {
         let song = load_string(
             "{title: Minimal reproduction}\n{key: G}\n{language: de}\n{language2: en}\
              \n{section: Test}\nD[G]u\n&[G]All\n",
@@ -229,5 +237,115 @@ mod tests {
             ),
             "G should remain attached to the translated lyric: {html}"
         );
+        assert!(
+            !html.contains(">-</span>"),
+            "empty translated fragments must not create a hyphen: {html}"
+        );
+
+        let html_de = render_line(
+            line,
+            song.key.as_ref().expect("song key"),
+            &ChordRepresentation::Default,
+            0,
+        );
+        let german_lyric = line
+            .parts
+            .iter()
+            .map(|part| part.text_for_language(0))
+            .collect::<String>();
+        assert_eq!(german_lyric, "Du");
+        assert!(
+            html_de.contains("<span class=\"text\">D</span>"),
+            "German leading lyric should remain unchanged: {html_de}"
+        );
+        assert!(
+            html_de.contains("<span class=\"chord\">G</span>"),
+            "German G chord should remain present: {html_de}"
+        );
+    }
+
+    #[test]
+    fn render_line_joins_translated_bridge_lyrics_without_leaking_primary_text() {
+        let cases = [
+            (
+                "D[G]u bist meine H[D]offnung\n&[G]All my hope [D]is in You\n",
+                "All my hope is in You",
+                "All my hope ",
+                "is in You",
+            ),
+            (
+                "D[G]u bist meine H[D]offnung\n&[G]All my hope is [D]in You\n",
+                "All my hope is in You",
+                "All my hope is ",
+                "in You",
+            ),
+        ];
+
+        for (input, expected_english, g_text, d_text) in cases {
+            let song = load_string(&format!(
+                "{{title: Translation}}\n{{key: G}}\n{{language: de}}\n{{language2: en}}\n{{section: Bridge}}\n{input}"
+            ))
+            .expect("parse song");
+            let line = &song.sections[0].lines[0];
+            let key = song.key.as_ref().expect("song key");
+            let representation = ChordRepresentation::Default;
+
+            let html_en = render_line(line, key, &representation, 1);
+            let english_lyric = line
+                .parts
+                .iter()
+                .map(|part| part.text_for_language(1))
+                .collect::<String>();
+            assert!(
+                html_en.contains("All my hope"),
+                "English lyric should render: {html_en}"
+            );
+            assert_eq!(english_lyric, expected_english);
+            assert!(
+                !html_en.contains(">-</span>")
+                    && !html_en.contains("<span class=\"text\">D</span>")
+                    && !html_en.contains("u bist meine H")
+                    && !html_en.contains("<span class=\"text\">offnung</span>"),
+                "English lyric must not include German text or a generated hyphen: {html_en}"
+            );
+            assert!(
+                html_en.contains("<span class=\"chord\">G</span>")
+                    && html_en.contains("<span class=\"chord\">D</span>"),
+                "G and D chords should remain aligned with the translated lyric: {html_en}"
+            );
+
+            let html_de = render_line(line, key, &representation, 0);
+            let german_lyric = line
+                .parts
+                .iter()
+                .map(|part| part.text_for_language(0))
+                .collect::<String>();
+            assert_eq!(german_lyric, "Du bist meine Hoffnung");
+            for german_fragment in [
+                "<span class=\"text\">D</span>",
+                "<span class=\"text\">u</span>",
+                "<span class=\"text\"> bist meine </span>",
+                "<span class=\"text\">H</span>",
+                "<span class=\"text\">offnung</span>",
+            ] {
+                assert!(
+                    html_de.contains(german_fragment),
+                    "German rendering should preserve lyric fragment {german_fragment:?}: {html_de}"
+                );
+            }
+            assert!(
+                html_en.contains(&format!(
+                    "<span class=\"chord\">G</span><span class=\"text\">{g_text}"
+                )) && html_en.contains(&format!(
+                    "<span class=\"chord\">D</span><span class=\"text\">{d_text}"
+                )),
+                "G and D should align with the translated lyric segments: {html_en}"
+            );
+            assert!(
+                html_de.contains("<span class=\"chord\">G</span>")
+                    && html_de.contains("<span class=\"chord\">D</span>"),
+                "German G and D chords should remain present: {html_de}"
+            );
+        }
     }
 }

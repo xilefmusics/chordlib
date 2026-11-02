@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### 🐛 Fixes
+
+- **Empty translated lyric fragments** — Ignore empty chordless fragments
+  when joining HTML lyric parts so they cannot add a leading hyphen; preserve
+  empty chorded parts for chord alignment.
+
 ---
 
 ## [0.18.1] — Translated lyric fallback fix
