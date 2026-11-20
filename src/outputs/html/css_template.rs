@@ -25,3 +25,18 @@ impl CssTemplate {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use askama::Template;
+
+    #[test]
+    fn chord_labels_overlay_without_changing_lyric_width() {
+        let css = CssTemplate::new().render().expect("render CSS");
+
+        assert!(css.contains("padding-top: 1.4em;"));
+        assert!(css.contains("position: absolute;"));
+        assert!(css.contains(".chord-word-gap {"));
+    }
+}

@@ -13,10 +13,11 @@ struct LineRenderer<'a> {
 }
 
 impl<'a> Iterator for LineRenderer<'a> {
-    type Item = (String, String);
+    type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (part, first, last, _, ends_with) = self.next_part?;
+        let starts_inside_word = self.inside_word;
         self.update_next_part();
 
         let next_starts_with = self
@@ -38,23 +39,17 @@ impl<'a> Iterator for LineRenderer<'a> {
 
         self.inside_word = inside_word;
 
-        let (part, text_chars, chord_chars) = render_part::render_part(
+        let part = render_part::render_part(
             part,
             self.key,
             self.representation,
             self.language,
+            starts_inside_word,
             start,
             end,
         );
 
-        Some((
-            part,
-            Self::suffix(
-                self.next_part.is_some(),
-                inside_word,
-                chord_chars as i32 - text_chars as i32 + 1,
-            ),
-        ))
+        Some(part)
     }
 }
 
@@ -112,37 +107,10 @@ impl<'a> LineRenderer<'a> {
         });
     }
 
-    fn suffix(has_next: bool, inside_word: bool, diff: i32) -> String {
-        if !has_next || diff < 1 {
-            return "".to_string();
-        }
-        let diff = diff as usize;
-        let mut result = String::with_capacity(64 + diff * 6);
-        result.push_str("<span class=\"text\">");
-        if inside_word {
-            let spaces = (diff - 1) * 2;
-            for _ in 0..spaces {
-                result.push(' ');
-            }
-            result.push('-');
-            for _ in 0..spaces {
-                result.push(' ');
-            }
-        } else {
-            let spaces = diff * 5;
-            for _ in 0..spaces {
-                result.push(' ');
-            }
-        }
-        result.push_str("</span>");
-        result
-    }
-
     fn render(&mut self) -> String {
         let mut result = String::with_capacity(256);
-        for (part, suffix) in self.by_ref() {
+        for part in self.by_ref() {
             result.push_str(&part);
-            result.push_str(&suffix);
         }
         result.push_str("<br>");
         result
@@ -347,5 +315,82 @@ mod tests {
                 "German G and D chords should remain present: {html_de}"
             );
         }
+    }
+
+    #[test]
+    fn render_line_keeps_adjacent_chords_on_syllables_without_synthetic_gaps() {
+        let song = load_string(
+            "{title: Chord spacing}\n{key: D}\n{section: Chorus}\nMy h[1]eart I br[54/7]ing as an [42/6]offer[1/5]ing\n",
+        )
+        .expect("parse song");
+        let line = &song.sections[0].lines[0];
+        let html = render_line(
+            line,
+            song.key.as_ref().expect("song key"),
+            &ChordRepresentation::Default,
+            0,
+        );
+
+        assert!(
+            html.contains(
+                r#"<span class="chord">G2/B</span><span class="text">offer</span></span><span class="part part-has-chord part-starts-inside-word"><span class="chord">D/A</span><span class="text">ing</span>"#
+            ),
+            "adjacent chords should stay attached to their syllables: {html}"
+        );
+        assert!(
+            !html.contains(r#"<span class="text">-</span>"#),
+            "chord widths should not insert a lyric hyphen: {html}"
+        );
+        assert!(
+            !html.contains(r#"<span class="text">     </span>"#),
+            "character-count spacing should not be emitted: {html}"
+        );
+    }
+
+    #[test]
+    fn render_line_does_not_add_spacing_for_short_equal_length_chords() {
+        let song = load_string("{title: Chord spacing}\n{key: C}\n{section: Chorus}\na[C]b[D]c\n")
+            .expect("parse song");
+        let line = &song.sections[0].lines[0];
+        let html = render_line(
+            line,
+            song.key.as_ref().expect("song key"),
+            &ChordRepresentation::Default,
+            0,
+        );
+
+        assert!(
+            html.contains(
+                r#"<span class="chord">C</span><span class="text">b</span></span><span class="part part-has-chord part-starts-inside-word"><span class="chord">D</span><span class="text">c</span>"#
+            ),
+            "short neighboring chords should not get synthetic spaces: {html}"
+        );
+        assert!(
+            !html.contains(r#"<span class="text">-</span>"#),
+            "short chords should not split a lyric word: {html}"
+        );
+    }
+
+    #[test]
+    fn render_line_reserves_room_for_long_slash_chords_without_text_padding() {
+        let song = load_string(
+            "{title: Chord spacing}\n{key: C}\n{section: Chorus}\na[G#dim7/C#]b[F#sus4/B]c\n",
+        )
+        .expect("parse song");
+        let line = &song.sections[0].lines[0];
+        let html = render_line(
+            line,
+            song.key.as_ref().expect("song key"),
+            &ChordRepresentation::Default,
+            0,
+        );
+
+        assert!(html.contains(r#"<span class="chord">G#dim7/C#</span>"#));
+        assert!(html.contains(r#"<span class="chord">F#sus4/B</span>"#));
+        assert!(
+            !html.contains(r#"<span class="text">-</span>"#)
+                && !html.contains(r#"<span class="text">     </span>"#),
+            "long chord labels should use layout width instead of text padding: {html}"
+        );
     }
 }
