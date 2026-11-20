@@ -273,6 +273,16 @@ mod tests {
     }
 
     #[test]
+    fn wrapped_html_adjusts_only_actual_chord_label_collisions() {
+        let html = wrap_html("<p>lyrics</p>", "", "Spacing");
+
+        assert!(html.contains("getBoundingClientRect()"));
+        assert!(html.contains("part-starts-inside-word"));
+        assert!(html.contains("chord-word-gap"));
+        assert!(html.contains("window.addEventListener(\"resize\""));
+    }
+
+    #[test]
     fn capo_labels_sounding_key_and_preserves_html_chord_shapes() {
         let input = r#"{title: Capo}
 {key: G}

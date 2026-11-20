@@ -5,19 +5,21 @@ pub fn render_part(
     key: &SimpleChord,
     representation: &ChordRepresentation,
     language: usize,
+    starts_inside_word: bool,
     mut start_word_position: Option<usize>,
     end_word_position: Option<usize>,
-) -> (String, usize, usize) {
+) -> String {
     let mut result = String::with_capacity(128);
-    let mut text_chars = 0;
-    let mut chord_chars = 0;
 
     let comment_class = if part.comment { "comment" } else { "text" };
 
     if let Some(chord) = &part.chord {
-        result.push_str("<span class=\"part part-has-chord\">");
+        if starts_inside_word {
+            result.push_str("<span class=\"part part-has-chord part-starts-inside-word\">");
+        } else {
+            result.push_str("<span class=\"part part-has-chord\">");
+        }
         let formatted_chord = chord.format(key, representation);
-        chord_chars = formatted_chord.chars().count();
         result.push_str("<span class=\"chord\">");
         result.push_str(&formatted_chord);
         result.push_str("</span>");
@@ -28,7 +30,6 @@ pub fn render_part(
     let text = part.text_for_language(language);
     if !text.is_empty() {
         let mut text = text;
-        text_chars = text.chars().count();
 
         if let Some(end) = end_word_position {
             let (before_end, after_end) = text.split_at(end);
@@ -74,5 +75,5 @@ pub fn render_part(
 
     result.push_str("</span>");
 
-    (result, text_chars, chord_chars)
+    result
 }

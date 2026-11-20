@@ -102,6 +102,12 @@ body {
   text-align: center;
 }
 
+.chord-word-gap {
+  display: inline-block;
+  white-space: pre;
+  text-align: center;
+}
+
 .word {
   white-space: nowrap;
 }

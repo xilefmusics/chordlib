@@ -21,5 +21,85 @@
   </head>
   <body>
     {{ page }}
+    <script>
+      (() => {
+        const gap = 3;
+
+        // Measure rendered labels so only colliding chords change lyric flow.
+        function layoutChordSpacing() {
+          document.querySelectorAll(".part-has-chord").forEach((part) => {
+            part.style.marginLeft = "";
+          });
+          document.querySelectorAll(".chord-word-gap").forEach((gap) => gap.remove());
+
+          document.querySelectorAll(".columns p").forEach((line) => {
+            let lineTop = null;
+            let rightmostChord = null;
+
+            line.querySelectorAll(".part-has-chord").forEach((part) => {
+              const chord = part.querySelector(":scope > .chord");
+              const text = part.querySelector(":scope > .text, :scope > .comment");
+              if (!chord || !text) return;
+
+              let textTop = text.getBoundingClientRect().top;
+              if (lineTop === null || Math.abs(textTop - lineTop) > 1) {
+                lineTop = textTop;
+                rightmostChord = null;
+              }
+
+              const page = part.closest(".page");
+              const pageWidth = page ? page.offsetWidth : 0;
+              const pageScale = pageWidth
+                ? page.getBoundingClientRect().width / pageWidth
+                : 1;
+              const chordRect = chord.getBoundingClientRect();
+
+              if (rightmostChord !== null) {
+                const overlap = (rightmostChord - chordRect.left) / pageScale;
+                if (overlap > 0) {
+                  const requiredGap = overlap + gap;
+                  if (part.classList.contains("part-starts-inside-word")) {
+                    const wordGap = document.createElement("span");
+                    wordGap.className = "chord-word-gap";
+                    wordGap.textContent = "-";
+                    part.before(wordGap);
+                    const hyphenWidth = wordGap.getBoundingClientRect().width / pageScale;
+                    wordGap.style.width = `${Math.max(requiredGap, hyphenWidth)}px`;
+                  } else {
+                    part.style.marginLeft = `${requiredGap}px`;
+                  }
+
+                  textTop = text.getBoundingClientRect().top;
+                  if (Math.abs(textTop - lineTop) > 1) {
+                    lineTop = textTop;
+                    rightmostChord = null;
+                  }
+                }
+              }
+
+              const currentRight = chord.getBoundingClientRect().right;
+              rightmostChord = Math.max(rightmostChord ?? currentRight, currentRight);
+            });
+          });
+        }
+
+        let scheduled = false;
+        const scheduleLayout = () => {
+          if (scheduled) return;
+          scheduled = true;
+          requestAnimationFrame(() => {
+            scheduled = false;
+            layoutChordSpacing();
+          });
+        };
+
+        layoutChordSpacing();
+        window.addEventListener("resize", scheduleLayout);
+        window.addEventListener("beforeprint", layoutChordSpacing);
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(scheduleLayout);
+        }
+      })();
+    </script>
   </body>
 </html>
