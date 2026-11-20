@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [0.18.3] — HTML chord spacing
+
+### 🐛 Fixes
+
+- **HTML chord spacing** — Measure rendered chord labels and add spacing only
+  when they collide; preserve lyric flow and hyphenate collisions inside words.
+
+---
+
 ## [0.18.2] — Empty translated lyric fragments
 
 ### 🐛 Fixes
@@ -345,6 +354,7 @@ The internal song model is used by some users for storage (e.g. JSON in a DB). S
 
 See git history or tags for earlier releases.
 
+[0.18.3]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.3
 [0.18.2]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.2
 [0.18.1]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.1
 [0.18.0]: https://github.com/xilefmusics/chordlib/releases/tag/0.18.0
